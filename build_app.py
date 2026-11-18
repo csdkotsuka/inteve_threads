@@ -723,14 +723,17 @@ def generate_app():
         </div>
       </div>
 
-      <div class="modal-footer">
-        <div style="display: flex; gap: 6px;">
+      <div class="modal-footer" style="flex-wrap: wrap;">
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
           <button class="btn" onclick="copyModalText()">📋 コピー</button>
-          <a id="modalThreadsIntentBtn" href="#" target="_blank" rel="noopener noreferrer" class="btn">
-            🧵 Threadsで手動投稿
+          <a id="modalThreadsIntentBtn" href="#" target="_blank" rel="noopener noreferrer" class="btn" style="background: #0f172a; color: #fff; border-color: #0f172a;">
+            🧵 Threadsで投稿
+          </a>
+          <a id="modalLinkedInIntentBtn" href="#" target="_blank" rel="noopener noreferrer" class="btn" style="background: #0a66c2; color: #fff; border-color: #0a66c2;">
+            💼 LinkedInで投稿
           </a>
         </div>
-        <div style="display: flex; gap: 6px;">
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
           <button id="modalTogglePublishBtn" class="btn" onclick="togglePublishFromModal()">
             ✅ 投稿済みにする
           </button>
@@ -1038,9 +1041,8 @@ def generate_app():
         clearBtn.style.display = 'none';
       }}
 
-      // Intent link
-      const encoded = encodeURIComponent(item.content || '');
-      document.getElementById('modalThreadsIntentBtn').href = `https://www.threads.net/intent/post?text=${{encoded}}`;
+      // Intent links
+      updateIntentLinks(item.content || '');
 
       // Toggle publish button text
       const toggleBtn = document.getElementById('modalTogglePublishBtn');
@@ -1071,10 +1073,24 @@ def generate_app():
       currentModalDocId = null;
     }}
 
-    function updateModalCharCount() {{
-      const len = document.getElementById('modalEditTextarea').value.length;
-      document.getElementById('modalCharCount').textContent = `${{len}} 文字 (Threads上限: 500文字)`;
+    function updateIntentLinks(text) {{
+      const encoded = encodeURIComponent(text || '');
+      document.getElementById('modalThreadsIntentBtn').href = `https://www.threads.net/intent/post?text=${{encoded}}`;
+      document.getElementById('modalLinkedInIntentBtn').href = `https://www.linkedin.com/feed/?shareActive=true&text=${{encoded}}`;
     }}
+
+    function updateModalCharCount() {{
+      const val = document.getElementById('modalEditTextarea').value;
+      document.getElementById('modalCharCount').textContent = `${{val.length}} 文字 (Threads上限: 500文字)`;
+      updateIntentLinks(val);
+    }}
+
+    document.addEventListener('keydown', (e) => {{
+      if (e.key === 'Escape') {{
+        closeModalDirect();
+        closeBulkModal();
+      }}
+    }});
 
     function copyModalText() {{
       const text = document.getElementById('modalEditTextarea').value;
