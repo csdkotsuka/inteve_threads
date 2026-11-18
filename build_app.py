@@ -903,6 +903,20 @@ def generate_app():
         return true;
       }});
 
+      if (currentStatusFilter === 'scheduled') {{
+        filtered.sort((a, b) => {{
+          const ta = a.scheduledAt ? new Date(a.scheduledAt).getTime() : Number.MAX_SAFE_INTEGER;
+          const tb = b.scheduledAt ? new Date(b.scheduledAt).getTime() : Number.MAX_SAFE_INTEGER;
+          return ta !== tb ? ta - tb : (a.dayNumber || 0) - (b.dayNumber || 0);
+        }});
+      }} else if (currentStatusFilter === 'published') {{
+        filtered.sort((a, b) => {{
+          const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+          const tb = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+          return tb !== ta ? tb - ta : (a.dayNumber || 0) - (b.dayNumber || 0);
+        }});
+      }}
+
       if (filtered.length === 0) {{
         container.innerHTML = '<div style="text-align: center; padding: 40px; color: #94a3b8; grid-column: 1/-1;">該当する投稿はありません</div>';
         return;
@@ -916,7 +930,8 @@ def generate_app():
 
         let statusBadgeHtml = '<span class="status-badge badge-stock">📝 ストック</span>';
         if (isPublished) {{
-          statusBadgeHtml = '<span class="status-badge badge-published">✅ 投稿済み</span>';
+          const pubTimeStr = item.publishedAt ? ` (${{formatDateTime(item.publishedAt)}})` : '';
+          statusBadgeHtml = `<span class="status-badge badge-published">✅ 投稿済み${{pubTimeStr}}</span>`;
         }} else if (isScheduled) {{
           const timeStr = item.scheduledAt ? formatDateTime(item.scheduledAt) : '日時未設定';
           statusBadgeHtml = `<span class="status-badge badge-scheduled">📅 予約: ${{timeStr}}</span>`;
