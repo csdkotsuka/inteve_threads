@@ -6,7 +6,7 @@ def generate_app():
     env = load_env()
     
     # Read CSV as fallback initial data
-    with open("sns_contents_100.csv", "r", encoding="utf-8-sig") as f:
+    with open("sns_contents_140.csv", "r", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         posts = list(reader)
 
@@ -57,12 +57,13 @@ def generate_app():
       --warning: #f59e0b;
       --warning-bg: #fffbeb;
 
-      /* 5大カテゴリーカラー */
+      /* 6大カテゴリーカラー */
       --cat-edu: #e11d48;     /* 実習・教育の本音 */
       --cat-dx: #0d9488;      /* 医療教育DX・業務効率化 */
       --cat-career: #7c3aed;  /* PTのキャリア・未来 */
       --cat-clinical: #d97706;/* 臨床思考・リハビリのリアル */
       --cat-mind: #2563eb;    /* 教員室のつぶやき・マインド */
+      --cat-gov: #4338ca;     /* 学校経営・教育ガバナンスDX */
     }}
 
     * {{
@@ -343,6 +344,17 @@ def generate_app():
     .cat-career {{ background-color: var(--cat-career); }}
     .cat-clinical {{ background-color: var(--cat-clinical); }}
     .cat-mind {{ background-color: var(--cat-mind); }}
+    .cat-gov {{ background-color: var(--cat-gov); }}
+
+    .platform-badge {{
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+    }}
 
     .status-badge {{
       font-size: 10px;
@@ -601,8 +613,9 @@ def generate_app():
             <span id="syncText">接続中...</span>
           </span>
         </div>
-        <div class="action-bar">
+        <div class="action-bar" style="display: flex; gap: 6px; flex-wrap: wrap;">
           <button class="btn" onclick="openRandomPicker()">🎲 ランダム選出</button>
+          <button class="btn btn-primary" onclick="openBulkScheduleModal()">📅 ランダム一括予約</button>
         </div>
       </div>
 
@@ -636,6 +649,7 @@ def generate_app():
             <option value="PTのキャリア・未来">PTのキャリア・未来</option>
             <option value="臨床思考・リハビリのリアル">臨床思考・リハビリのリアル</option>
             <option value="教員室のつぶやき・マインド">教員室のつぶやき・マインド</option>
+            <option value="学校経営・教育ガバナンスDX">学校経営・教育ガバナンスDX (LinkedIn/B2B)</option>
           </select>
         </div>
       </div>
@@ -680,7 +694,15 @@ def generate_app():
         <!-- 予約設定 -->
         <div class="schedule-box">
           <div class="schedule-title">
-            <span>📅 投稿日時の予約設定</span>
+            <span>📅 投稿日時の予約設定 ＆ 配信先</span>
+          </div>
+          <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+            <label style="font-size: 11.5px; font-weight: 700; color: var(--text-muted);">配信先:</label>
+            <select id="modalPlatformSelect" class="category-select" style="width: auto; min-width: 190px;">
+              <option value="threads">🧵 Threads のみ</option>
+              <option value="linkedin">💼 LinkedIn のみ</option>
+              <option value="both">🚀 Threads ＆ LinkedIn 両方</option>
+            </select>
           </div>
           <div class="schedule-row">
             <input type="datetime-local" id="modalScheduleInput" class="schedule-input">
@@ -718,6 +740,47 @@ def generate_app():
     </div>
   </div>
 
+  <!-- ランダム一括自動予約モーダル -->
+  <div id="bulkModalOverlay" class="modal-overlay" onclick="if(event.target.id==='bulkModalOverlay') closeBulkModal()">
+    <div class="modal-box" onclick="event.stopPropagation()" style="max-width: 460px;">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <span style="font-weight: 800; font-size: 15px; color: #0f766e;">🎲 ランダム一括自動予約</span>
+        </div>
+        <button class="modal-close" onclick="closeBulkModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="gap: 14px;">
+        <p style="font-size: 12.5px; color: var(--text-muted); line-height: 1.5;">
+          「ストック（未予約・未投稿）」の中から各ジャンルが偏らないようにランダム選出し、明日から毎日指定時刻に自動投稿予約をセットします。
+        </p>
+        <div>
+          <label style="font-size: 12px; font-weight: 700; display: block; margin-bottom: 4px;">予約する日数</label>
+          <select id="bulkDaysSelect" class="category-select">
+            <option value="7">7日分（1週間）</option>
+            <option value="14">14日分（2週間）</option>
+            <option value="30">30日分（約1ヶ月）</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size: 12px; font-weight: 700; display: block; margin-bottom: 4px;">毎日の投稿時刻</label>
+          <input type="time" id="bulkTimeInput" class="schedule-input" value="08:00" style="width: 100%;">
+        </div>
+        <div>
+          <label style="font-size: 12px; font-weight: 700; display: block; margin-bottom: 4px;">配信先プラットフォーム</label>
+          <select id="bulkPlatformSelect" class="category-select">
+            <option value="threads">🧵 Threads のみ</option>
+            <option value="both">🚀 Threads ＆ LinkedIn 両方</option>
+            <option value="linkedin">💼 LinkedIn のみ</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: flex-end;">
+        <button class="btn" onclick="closeBulkModal()">キャンセル</button>
+        <button class="btn btn-primary" onclick="executeBulkSchedule()">一括予約を実行する</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // Firebase Config
     const firebaseConfig = {firebase_config_json};
@@ -728,7 +791,14 @@ def generate_app():
       '医療教育DX・業務効率化': 'cat-dx',
       'PTのキャリア・未来': 'cat-career',
       '臨床思考・リハビリのリアル': 'cat-clinical',
-      '教員室のつぶやき・マインド': 'cat-mind'
+      '教員室のつぶやき・マインド': 'cat-mind',
+      '学校経営・教育ガバナンスDX': 'cat-gov'
+    }};
+
+    const PLATFORM_LABELS = {{
+      'threads': '🧵 Threads',
+      'linkedin': '💼 LinkedIn',
+      'both': '🚀 Threads+LI'
     }};
 
     let postsData = [];
@@ -862,12 +932,16 @@ def generate_app():
           `;
         }}
 
+        const pTarget = item.platforms || 'threads';
+        const pLabel = PLATFORM_LABELS[pTarget] || '🧵 Threads';
+
         return `
           <div class="post-card status-${{st}}" id="card-${{item.id}}">
             <div class="post-card-top">
               <div class="post-badges">
                 <span class="day-badge">${{item.day}}</span>
                 <span class="cat-badge ${{catClass}}">${{item.category}}</span>
+                <span class="platform-badge">${{pLabel}}</span>
               </div>
               <div>${{statusBadgeHtml}}</div>
             </div>
@@ -943,6 +1017,9 @@ def generate_app():
       textarea.value = item.content || '';
       updateModalCharCount();
 
+      // Platform Select
+      document.getElementById('modalPlatformSelect').value = item.platforms || 'threads';
+
       // Schedule Input
       const scheduleInput = document.getElementById('modalScheduleInput');
       const clearBtn = document.getElementById('modalClearScheduleBtn');
@@ -1007,9 +1084,11 @@ def generate_app():
     function saveContentEdit() {{
       if (!currentModalDocId || !db) return;
       const text = document.getElementById('modalEditTextarea').value;
+      const platform = document.getElementById('modalPlatformSelect').value;
 
       db.collection('posts').doc(currentModalDocId).update({{
-        content: text
+        content: text,
+        platforms: platform
       }}).then(() => {{
         showToast('変更内容をクラウドに保存しました！');
       }}).catch(err => {{
@@ -1027,9 +1106,11 @@ def generate_app():
 
       // convert to ISO string
       const isoStr = new Date(val).toISOString();
+      const platform = document.getElementById('modalPlatformSelect').value;
 
       db.collection('posts').doc(currentModalDocId).update({{
         scheduledAt: isoStr,
+        platforms: platform,
         status: 'scheduled'
       }}).then(() => {{
         showToast('予約日時を設定しました 📅');
@@ -1080,6 +1161,82 @@ def generate_app():
       if (pool.length === 0) return;
       const picked = pool[Math.floor(Math.random() * pool.length)];
       openModal(picked.id);
+    }}
+
+    function openBulkScheduleModal() {{
+      document.getElementById('bulkModalOverlay').classList.add('active');
+    }}
+
+    function closeBulkModal() {{
+      document.getElementById('bulkModalOverlay').classList.remove('active');
+    }}
+
+    function executeBulkSchedule() {{
+      if (!db) return;
+      const days = parseInt(document.getElementById('bulkDaysSelect').value, 10);
+      const timeStr = document.getElementById('bulkTimeInput').value || '08:00';
+      const platform = document.getElementById('bulkPlatformSelect').value;
+
+      const stockPosts = postsData.filter(p => (p.status || 'stock') === 'stock');
+      if (stockPosts.length === 0) {{
+        alert('予約可能な「ストック」状態の投稿がありません。');
+        return;
+      }}
+
+      // ジャンル偏りを防ぐため、カテゴリごとにシャッフルしてラウンドロビンで選出
+      const byCat = {{}};
+      stockPosts.forEach(p => {{
+        const c = p.category || 'その他';
+        if (!byCat[c]) byCat[c] = [];
+        byCat[c].push(p);
+      }});
+      Object.values(byCat).forEach(arr => {{
+        for (let i = arr.length - 1; i > 0; i--) {{
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }}
+      }});
+
+      const catKeys = Object.keys(byCat);
+      for (let i = catKeys.length - 1; i > 0; i--) {{
+        const j = Math.floor(Math.random() * (i + 1));
+        [catKeys[i], catKeys[j]] = [catKeys[j], catKeys[i]];
+      }}
+
+      const selected = [];
+      let idx = 0;
+      while (selected.length < days) {{
+        let addedInRound = false;
+        for (const k of catKeys) {{
+          if (byCat[k].length > 0 && selected.length < days) {{
+            selected.push(byCat[k].pop());
+            addedInRound = true;
+          }}
+        }}
+        if (!addedInRound) break;
+        idx++;
+      }}
+
+      const [hh, mm] = timeStr.split(':').map(Number);
+      const batch = db.batch();
+      const now = new Date();
+
+      selected.forEach((post, i) => {{
+        const targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i + 1, hh, mm, 0);
+        const ref = db.collection('posts').doc(post.id);
+        batch.update(ref, {{
+          status: 'scheduled',
+          scheduledAt: targetDate.toISOString(),
+          platforms: platform
+        }});
+      }});
+
+      batch.commit().then(() => {{
+        closeBulkModal();
+        showToast(`${{selected.length}}日分のランダム予約を自動設定しました 🎉`);
+      }}).catch(err => {{
+        alert('一括予約に失敗しました: ' + err.message);
+      }});
     }}
 
     function copyToClipboard(text) {{

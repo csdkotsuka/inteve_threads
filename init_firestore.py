@@ -2,16 +2,20 @@ import csv
 import json
 import urllib.request
 import urllib.error
-import time
+import os
 
 def load_env():
-    env = {}
-    with open('.env') as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith('#') and '=' in line:
-                k, v = line.split('=', 1)
-                env[k.strip()] = v.strip()
+    env = dict(os.environ)
+    try:
+        with open('.env') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    k, v = line.split('=', 1)
+                    if k.strip() not in env or not env[k.strip()]:
+                        env[k.strip()] = v.strip()
+    except FileNotFoundError:
+        pass
     return env
 
 def main():
@@ -23,59 +27,57 @@ def main():
         print("Error: FIREBASE_PROJECT_ID or FIREBASE_API_KEY not found in .env")
         return
 
-    # Read CSV
+    csv_file = 'sns_contents_140.csv' if os.path.exists('sns_contents_140.csv') else 'sns_contents_100.csv'
     posts = []
-    with open('sns_contents_100.csv', mode='r', encoding='utf-8-sig') as f:
+    with open(csv_file, mode='r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
         for idx, row in enumerate(reader, start=1):
+            cat = row.get('CategoryShort', 'その他')
+            # 新規カテゴリーやDX・キャリア系は LinkedIn との相性も高いため初期値設定可能
+            default_platform = "both" if idx > 100 else "threads"
             posts.append({
                 'dayNumber': idx,
                 'day': row.get('Day', f'Day {idx}'),
-                'category': row.get('CategoryShort', 'その他'),
-                'content': row.get('Content', '').strip()
+                'category': cat,
+                'content': row.get('Content', '').strip(),
+                'platforms': default_platform
             })
 
-    print(f"Loaded {len(posts)} posts from CSV. Checking Firestore...")
+    print(f"Loaded {len(posts)} posts from {csv_file}. Syncing missing posts to Firestore...")
 
-    # Upload to Firestore via REST API
-    # Document path: projects/{project_id}/databases/(default)/documents/posts/day_{dayNumber}
     base_url = f"https://firestore.googleapis.com/v1/projects/{project_id}/databases/(default)/documents/posts"
 
-    # Check if documents already exist to avoid overwriting modified content
-    existing_check_url = f"{base_url}/day_1?key={api_key}"
-    already_initialized = False
+    # 既存ドキュメントID一覧を取得
+    existing_ids = set()
+    list_url = f"{base_url}?pageSize=300&key={api_key}"
     try:
-        req = urllib.request.Request(existing_check_url)
-        with urllib.request.urlopen(req) as res:
-            if res.status == 200:
-                already_initialized = True
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            already_initialized = False
-        else:
-            print(f"Firestore check returned {e.code}: {e.read().decode('utf-8')}")
+        with urllib.request.urlopen(urllib.request.Request(list_url)) as res:
+            data = json.loads(res.read().decode('utf-8'))
+            for doc in data.get('documents', []):
+                existing_ids.add(doc.get('name', '').split('/')[-1])
+    except Exception as e:
+        print(f"Notice checking existing docs: {e}")
 
-    if already_initialized:
-        print("Notice: 'day_1' already exists in Firestore! Checking total count before deciding.")
-        # Proceed with merge/patch or skip if already populated
-    
-    print(f"Initializing {len(posts)} posts to Firestore...")
+    print(f"Found {len(existing_ids)} existing documents in Firestore.")
 
-    success_count = 0
+    created_count = 0
     for p in posts:
         doc_id = f"day_{p['dayNumber']}"
-        doc_url = f"{base_url}/{doc_id}?key={api_key}"
+        if doc_id in existing_ids:
+            continue
 
-        # Firestore REST format
+        doc_url = f"{base_url}/{doc_id}?key={api_key}"
         fields = {
             "day": {"stringValue": p["day"]},
             "dayNumber": {"integerValue": str(p["dayNumber"])},
             "category": {"stringValue": p["category"]},
             "content": {"stringValue": p["content"]},
-            "status": {"stringValue": "stock"},  # stock | scheduled | published
+            "platforms": {"stringValue": p["platforms"]},
+            "status": {"stringValue": "stock"},
             "scheduledAt": {"nullValue": None},
             "publishedAt": {"nullValue": None},
             "threadsMediaId": {"nullValue": None},
+            "linkedinPostId": {"nullValue": None},
             "insights": {
                 "mapValue": {
                     "fields": {
@@ -89,31 +91,24 @@ def main():
             }
         }
 
-        # Use PATCH to create or update without deleting untouched fields
-        patch_url = f"{doc_url}&updateMask.fieldPaths=day&updateMask.fieldPaths=dayNumber&updateMask.fieldPaths=category&updateMask.fieldPaths=content"
-        # If document doesn't exist, we send full doc
         payload = json.dumps({"fields": fields}).encode('utf-8')
-
         req = urllib.request.Request(
-            f"{doc_url}",
+            doc_url,
             data=payload,
             headers={"Content-Type": "application/json"},
             method="PATCH"
         )
 
         try:
-            with urllib.request.urlopen(req) as res:
-                success_count += 1
-                if success_count % 20 == 0 or success_count == len(posts):
-                    print(f"Uploaded {success_count}/{len(posts)} posts...")
+            with urllib.request.urlopen(req):
+                created_count += 1
+                if created_count % 10 == 0:
+                    print(f"Added {created_count} new posts...")
         except urllib.error.HTTPError as e:
             print(f"Failed to upload {doc_id}: {e.code} - {e.read().decode('utf-8')}")
             break
-        except Exception as e:
-            print(f"Error on {doc_id}: {e}")
-            break
 
-    print(f"Initialization finished. Successfully set {success_count} posts in Firestore.")
+    print(f"Sync complete! Added {created_count} new posts. Total in Firestore should now be {len(existing_ids) + created_count}.")
 
 if __name__ == '__main__':
     main()

@@ -5,15 +5,15 @@ import time
 import urllib.request
 import urllib.error
 from threads_api import ThreadsAPI, load_env
+from linkedin_api import LinkedInAPI
 
 def get_now_iso():
-    # JST ISO format
     jst = datetime.timezone(datetime.timedelta(hours=9))
     return datetime.datetime.now(jst).isoformat()
 
 def get_firestore_posts(project_id, api_key):
     """Firestoreから全投稿ドキュメントを取得"""
-    base_url = f"https://firestore.googleapis.com/v1/projects/{project_id}/databases/(default)/documents/posts?pageSize=150&key={api_key}"
+    base_url = f"https://firestore.googleapis.com/v1/projects/{project_id}/databases/(default)/documents/posts?pageSize=300&key={api_key}"
     req = urllib.request.Request(base_url)
     with urllib.request.urlopen(req) as res:
         data = json.loads(res.read().decode('utf-8'))
@@ -41,10 +41,12 @@ def get_firestore_posts(project_id, api_key):
                 'dayNumber': get_val(fields.get('dayNumber')),
                 'category': get_val(fields.get('category')),
                 'content': get_val(fields.get('content')),
+                'platforms': get_val(fields.get('platforms')) or 'threads',
                 'status': get_val(fields.get('status')) or 'stock',
                 'scheduledAt': get_val(fields.get('scheduledAt')),
                 'publishedAt': get_val(fields.get('publishedAt')),
                 'threadsMediaId': get_val(fields.get('threadsMediaId')),
+                'linkedinPostId': get_val(fields.get('linkedinPostId')),
                 'insights': get_val(fields.get('insights')) or {}
             })
         return posts
@@ -83,14 +85,27 @@ def update_firestore_post(project_id, api_key, doc_id, fields_to_update):
     with urllib.request.urlopen(req) as res:
         return json.loads(res.read().decode('utf-8'))
 
+def parse_iso_utc(iso_str):
+    if not iso_str:
+        return None
+    try:
+        dt = datetime.datetime.fromisoformat(iso_str.replace('Z', '+00:00'))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=datetime.timezone.utc)
+        return dt.astimezone(datetime.timezone.utc)
+    except Exception:
+        return None
+
 def check_and_publish():
     env = load_env()
     project_id = env.get('FIREBASE_PROJECT_ID')
     api_key = env.get('FIREBASE_API_KEY')
     threads = ThreadsAPI()
+    linkedin = LinkedInAPI()
 
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
     now_iso = get_now_iso()
-    print(f"[{now_iso}] Checking scheduled posts...")
+    print(f"[{now_iso}] Checking scheduled posts... (LinkedIn enabled: {linkedin.is_configured()})")
 
     try:
         posts = get_firestore_posts(project_id, api_key)
@@ -98,41 +113,60 @@ def check_and_publish():
         print(f"Error fetching Firestore posts: {e}")
         return
 
-    # Check for posts that are scheduled and scheduledAt <= now
-    scheduled_posts = [
-        p for p in posts 
-        if p.get('status') == 'scheduled' and p.get('scheduledAt') and p['scheduledAt'] <= now_iso
-    ]
-
-    # Sort by scheduled time
+    scheduled_posts = []
+    for p in posts:
+        if p.get('status') == 'scheduled' and p.get('scheduledAt'):
+            sched_dt = parse_iso_utc(p['scheduledAt'])
+            if sched_dt and sched_dt <= now_utc:
+                scheduled_posts.append(p)
     scheduled_posts.sort(key=lambda x: x['scheduledAt'])
 
     for post in scheduled_posts:
-        print(f"Found post ready for publishing: {post['day']} (Scheduled: {post['scheduledAt']})")
+        print(f"Found post ready for publishing: {post['day']} (Target: {post['platforms']}, Scheduled: {post['scheduledAt']})")
         text = post.get('content')
         if not text:
             print(f"Skipping empty post: {post['day']}")
             continue
 
-        try:
-            res = threads.publish_text_post(text)
-            media_id = res.get('media_id')
-            print(f"Published successfully! Threads Media ID: {media_id}")
+        target = post.get('platforms', 'threads')
+        update_data = {}
+        published_any = False
 
-            update_data = {
-                'status': 'published',
-                'publishedAt': get_now_iso(),
-                'threadsMediaId': media_id
-            }
+        # 1. Threads 投稿
+        if target in ('threads', 'both'):
+            try:
+                res = threads.publish_text_post(text)
+                media_id = res.get('media_id')
+                print(f"  -> Threads published! Media ID: {media_id}")
+                update_data['threadsMediaId'] = media_id
+                published_any = True
+            except Exception as e:
+                print(f"  -> Failed to publish to Threads ({post['day']}): {e}")
+
+        # 2. LinkedIn 投稿
+        if target in ('linkedin', 'both'):
+            if linkedin.is_configured():
+                try:
+                    li_res = linkedin.publish_text_post(text)
+                    li_id = li_res.get('post_id')
+                    print(f"  -> LinkedIn published! Post ID: {li_id}")
+                    update_data['linkedinPostId'] = li_id
+                    published_any = True
+                except Exception as e:
+                    print(f"  -> Failed to publish to LinkedIn ({post['day']}): {e}")
+            else:
+                print(f"  -> LinkedIn token not configured; skipping LinkedIn for {post['day']}.")
+
+        if published_any:
+            update_data['status'] = 'published'
+            update_data['publishedAt'] = get_now_iso()
             update_firestore_post(project_id, api_key, post['doc_id'], update_data)
             print(f"Updated Firestore status to 'published' for {post['doc_id']}.")
-        except Exception as e:
-            print(f"Failed to publish {post['day']}: {e}")
 
-    # Update insights for published posts
+    # Update insights for published Threads posts
     published_with_media = [p for p in posts if p.get('threadsMediaId')]
     if published_with_media:
-        print(f"Updating insights for {len(published_with_media)} published posts...")
+        print(f"Updating Threads insights for {len(published_with_media)} published posts...")
         for p in published_with_media:
             m_id = p['threadsMediaId']
             insights = threads.get_post_insights(m_id)
@@ -141,13 +175,13 @@ def check_and_publish():
                 update_firestore_post(project_id, api_key, p['doc_id'], {'insights': insights})
 
 def main():
-    parser = argparse.ArgumentParser(description="Threads Auto-Poster & Insights Updater")
+    parser = argparse.ArgumentParser(description="Threads & LinkedIn Auto-Poster")
     parser.add_argument('--daemon', action='store_true', help="Run continuously in background (checks every 5 minutes)")
     parser.add_argument('--interval', type=int, default=300, help="Check interval in seconds for daemon mode (default: 300)")
     args = parser.parse_args()
 
     if args.daemon:
-        print(f"Starting Threads Auto-Poster daemon (checking every {args.interval} seconds)...")
+        print(f"Starting Auto-Poster daemon (checking every {args.interval} seconds)...")
         while True:
             try:
                 check_and_publish()
