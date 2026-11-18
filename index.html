@@ -3,10 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Threads投稿アシスタント ｜ INTEVE × 理学療法教育DX</title>
+  <title>Threads 運用ダッシュボード ｜ INTEVE × 理学療法教育DX</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Firebase SDK (Compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
   <style>
     :root {
       --bg: #f8fafc;
@@ -25,13 +30,15 @@
       --success-bg: #ecfdf5;
       --success-border: #a7f3d0;
       --success-text: #047857;
+      --warning: #f59e0b;
+      --warning-bg: #fffbeb;
 
       /* 5大カテゴリーカラー */
-      --cat-edu: #e11d48;     /* 実習・教育の本音 (ローズ) */
-      --cat-dx: #0d9488;      /* 医療教育DX・業務効率化 (ティール) */
-      --cat-career: #7c3aed;  /* PTのキャリア・未来 (バイオレット) */
-      --cat-clinical: #d97706;/* 臨床思考・リハビリのリアル (アンバー) */
-      --cat-mind: #2563eb;    /* 教員室のつぶやき・マインド (ブルー) */
+      --cat-edu: #e11d48;     /* 実習・教育の本音 */
+      --cat-dx: #0d9488;      /* 医療教育DX・業務効率化 */
+      --cat-career: #7c3aed;  /* PTのキャリア・未来 */
+      --cat-clinical: #d97706;/* 臨床思考・リハビリのリアル */
+      --cat-mind: #2563eb;    /* 教員室のつぶやき・マインド */
     }
 
     * {
@@ -50,206 +57,136 @@
       padding-bottom: 90px;
     }
 
-    /* 固定ヘッダー */
-    .sticky-header {
+    .header-wrap {
+      background: var(--header-bg);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
       position: sticky;
       top: 0;
       z-index: 100;
-      background: var(--header-bg);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--card-border);
-      box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.05);
+      padding: 12px 16px 8px;
     }
 
     .header-inner {
-      max-width: 680px;
+      max-width: 900px;
       margin: 0 auto;
-      padding: 12px 16px;
-    }
-
-    .profile-bar {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 10px;
-    }
-
-    .profile-info {
-      display: flex;
-      align-items: center;
+      flex-direction: column;
       gap: 10px;
-      min-width: 0;
     }
 
-    .avatar-wrap {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #0d9488, #0284c7);
+    .header-top {
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      justify-content: center;
-      color: white;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .brand-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 19px;
       font-weight: 800;
-      font-size: 17px;
-      flex-shrink: 0;
-      box-shadow: 0 2px 8px rgba(13, 148, 136, 0.3);
-    }
-
-    .profile-meta {
-      min-width: 0;
-    }
-
-    .profile-meta .title {
-      font-size: 13.5px;
-      font-weight: 700;
       color: var(--text-main);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
     }
 
-    .badge-pt {
-      font-size: 10px;
-      background: #ccfbf1;
-      color: #0f766e;
-      padding: 1px 6px;
+    .brand-badge {
+      font-size: 11px;
+      background: var(--primary-light);
+      color: var(--primary);
+      padding: 2px 8px;
       border-radius: 9999px;
       font-weight: 700;
     }
 
-    .profile-meta .subtitle {
+    .sync-status {
       font-size: 11px;
-      color: var(--text-muted);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .header-links {
-      display: flex;
-      gap: 6px;
-      flex-shrink: 0;
-    }
-
-    .ext-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 5px 10px;
-      border-radius: 20px;
-      font-size: 11px;
-      font-weight: 700;
-      text-decoration: none;
-      transition: all 0.2s ease;
-    }
-
-    .ext-btn-threads {
-      background: #000000;
-      color: #ffffff;
-    }
-    .ext-btn-threads:hover {
-      background: #262626;
-      transform: translateY(-1px);
-    }
-
-    .ext-btn-note {
-      background: #249F80;
-      color: #ffffff;
-    }
-    .ext-btn-note:hover {
-      background: #1e876c;
-      transform: translateY(-1px);
-    }
-
-    /* ランダム投稿アクションバー */
-    .random-action-bar {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .random-btn {
-      flex: 1;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 10px 14px;
-      background: linear-gradient(135deg, #0f766e, #0369a1);
-      color: white;
-      border: none;
-      border-radius: 12px;
-      font-size: 13px;
-      font-weight: 700;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(15, 118, 110, 0.25);
-      transition: all 0.2s;
-    }
-    .random-btn:hover {
-      opacity: 0.95;
-      transform: translateY(-1px);
-    }
-    .random-btn:active {
-      transform: scale(0.98);
-    }
-
-    .shuffle-toggle-btn {
       display: inline-flex;
       align-items: center;
       gap: 5px;
-      padding: 10px 14px;
-      background: white;
-      color: var(--text-main);
-      border: 1px solid var(--card-border);
-      border-radius: 12px;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      background: #f1f5f9;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .sync-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #94a3b8;
+    }
+    .sync-dot.connected {
+      background: #10b981;
+      box-shadow: 0 0 6px #10b981;
+    }
+
+    .action-bar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .btn {
+      padding: 6px 12px;
+      border-radius: 8px;
       font-size: 12px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s;
+      border: 1px solid var(--card-border);
+      background: #fff;
+      color: var(--text-main);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
     }
-    .shuffle-toggle-btn.active {
-      background: #f0fdf4;
-      border-color: #86efac;
-      color: #166534;
-      font-weight: 700;
+    .btn:hover {
+      background: var(--card-hover);
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
     }
 
     /* 進捗バー */
     .progress-section {
-      margin-bottom: 10px;
+      background: #f1f5f9;
+      padding: 6px 10px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
-
     .progress-labels {
       display: flex;
       justify-content: space-between;
-      font-size: 11.5px;
-      font-weight: 600;
+      font-size: 11px;
       color: var(--text-muted);
-      margin-bottom: 4px;
+      font-weight: 600;
     }
-
     .progress-bar-bg {
-      width: 100%;
-      height: 7px;
-      background-color: #e2e8f0;
+      height: 6px;
+      background: #e2e8f0;
       border-radius: 9999px;
       overflow: hidden;
     }
-
     .progress-bar-fill {
       height: 100%;
-      background: linear-gradient(90deg, #0d9488, #0284c7);
+      background: linear-gradient(90deg, #10b981, #0f766e);
       border-radius: 9999px;
-      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: width 0.3s ease;
     }
 
-    /* 検索 & フィルターバー */
+    /* フィルターエリア */
     .filter-controls {
       display: flex;
       flex-direction: column;
@@ -259,18 +196,15 @@
     .search-box {
       width: 100%;
       padding: 8px 12px;
-      border-radius: 10px;
-      border: 1px solid var(--card-border);
       font-size: 13px;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      background: #fff;
       outline: none;
-      background: #f1f5f9;
-      color: var(--text-main);
-      transition: all 0.2s;
     }
     .search-box:focus {
-      background: #ffffff;
       border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
+      box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.15);
     }
 
     .filter-tabs {
@@ -278,92 +212,88 @@
       gap: 6px;
       overflow-x: auto;
       padding-bottom: 2px;
-      scrollbar-width: none;
-    }
-    .filter-tabs::-webkit-scrollbar {
-      display: none;
     }
 
     .tab-btn {
-      padding: 5px 12px;
-      font-size: 11.5px;
+      padding: 5px 11px;
+      border-radius: 9999px;
+      font-size: 12px;
       font-weight: 600;
-      color: var(--text-muted);
-      background: white;
       border: 1px solid var(--card-border);
-      border-radius: 20px;
+      background: #fff;
+      color: var(--text-muted);
       white-space: nowrap;
       cursor: pointer;
       transition: all 0.15s ease;
     }
     .tab-btn.active {
       background: var(--text-main);
-      color: #ffffff;
+      color: #fff;
       border-color: var(--text-main);
     }
 
     .category-select {
-      width: 100%;
       padding: 6px 10px;
-      border-radius: 10px;
-      border: 1px solid var(--card-border);
       font-size: 12px;
-      font-weight: 600;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      background: #fff;
       color: var(--text-main);
-      background: white;
       outline: none;
+      cursor: pointer;
     }
 
-    /* メインコンテンツ */
+    /* メインリスト */
     .main-wrap {
-      max-width: 680px;
-      margin: 16px auto 0;
+      max-width: 900px;
+      margin: 16px auto;
       padding: 0 16px;
     }
 
     .posts-container {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    @media (min-width: 680px) {
+      .posts-container {
+        grid-template-columns: repeat(2, 1fr);
+      }
     }
 
-    /* 投稿カード */
     .post-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      border-radius: 16px;
-      padding: 16px;
-      position: relative;
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
       transition: all 0.2s ease;
-      cursor: pointer;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+      position: relative;
     }
-
     .post-card:hover {
       border-color: #cbd5e1;
-      transform: translateY(-1px);
-      box-shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.06);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .post-card.status-published {
+      background: #fafafa;
+      opacity: 0.85;
+      border-color: #e2e8f0;
+    }
+    .post-card.status-scheduled {
+      border-color: #93c5fd;
+      background: #f8faff;
     }
 
-    .post-card:active {
-      transform: scale(0.995);
-    }
-
-    .post-card.completed {
-      background: #fafaf9;
-      border-color: #e5e5e5;
-      opacity: 0.78;
-    }
-
-    .card-header {
+    .post-card-top {
       display: flex;
-      align-items: center;
       justify-content: space-between;
-      margin-bottom: 12px;
+      align-items: center;
       gap: 8px;
     }
 
-    .card-meta-left {
+    .post-badges {
       display: flex;
       align-items: center;
       gap: 6px;
@@ -374,166 +304,116 @@
       font-family: 'Plus Jakarta Sans', sans-serif;
       font-size: 11px;
       font-weight: 800;
-      background: #0f172a;
-      color: #ffffff;
-      padding: 2px 8px;
-      border-radius: 6px;
-      letter-spacing: -0.2px;
+      color: var(--text-muted);
     }
 
     .cat-badge {
       font-size: 11px;
-      font-weight: 700;
-      padding: 2px 8px;
+      padding: 2px 7px;
       border-radius: 6px;
-      color: #ffffff;
+      font-weight: 700;
+      color: #fff;
     }
-
     .cat-edu { background-color: var(--cat-edu); }
     .cat-dx { background-color: var(--cat-dx); }
     .cat-career { background-color: var(--cat-career); }
     .cat-clinical { background-color: var(--cat-clinical); }
     .cat-mind { background-color: var(--cat-mind); }
 
-    .char-count {
-      font-size: 10.5px;
-      color: var(--text-dim);
-      font-family: 'Plus Jakarta Sans', sans-serif;
+    .status-badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+    .badge-stock { background: #f1f5f9; color: var(--text-muted); }
+    .badge-scheduled { background: #dbeafe; color: #1e40af; }
+    .badge-published { background: var(--success-bg); color: var(--success-text); border: 1px solid var(--success-border); }
+
+    .post-body {
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-main);
+      white-space: pre-wrap;
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      cursor: pointer;
     }
 
-    .check-wrapper {
+    .post-body:hover {
+      color: var(--primary);
+    }
+
+    /* インサイトバッジ */
+    .insights-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 11px;
+      background: #f1f5f9;
+      padding: 4px 8px;
+      border-radius: 6px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .insight-item {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      background: #f1f5f9;
-      padding: 4px 9px;
-      border-radius: 20px;
-      cursor: pointer;
-      user-select: none;
-      transition: background 0.2s ease;
-    }
-
-    .check-wrapper:hover {
-      background: #e2e8f0;
-    }
-
-    .post-card.completed .check-wrapper {
-      background: var(--success-bg);
-      border: 1px solid var(--success-border);
-    }
-
-    .check-input {
-      accent-color: var(--success);
-      width: 14px;
-      height: 14px;
-      cursor: pointer;
-    }
-
-    .check-label {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--text-muted);
-    }
-
-    .post-card.completed .check-label {
-      color: var(--success-text);
-    }
-
-    .card-content {
-      font-size: 13.5px;
-      line-height: 1.7;
-      color: #1e293b;
-      white-space: pre-wrap;
-      word-break: break-word;
-      margin-bottom: 14px;
+      gap: 3px;
     }
 
     .card-footer {
       display: flex;
-      align-items: center;
       justify-content: space-between;
-      border-top: 1px solid #f1f5f9;
-      padding-top: 10px;
-      gap: 10px;
-    }
-
-    .copy-hint {
-      font-size: 11.5px;
-      color: var(--primary);
-      font-weight: 600;
-      display: inline-flex;
       align-items: center;
-      gap: 5px;
+      padding-top: 8px;
+      border-top: 1px solid #f1f5f9;
+      margin-top: auto;
     }
 
-    .copy-hint svg {
-      width: 14px;
-      height: 14px;
-    }
-
-    .direct-threads-btn {
+    .check-toggle {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      background: #000000;
-      color: #ffffff;
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-size: 11.5px;
-      font-weight: 700;
-      text-decoration: none;
-      transition: all 0.15s ease;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      user-select: none;
+    }
+    .check-toggle input {
+      cursor: pointer;
+      accent-color: var(--primary);
+      width: 16px;
+      height: 16px;
     }
 
-    .direct-threads-btn:hover {
-      background: #262626;
-      transform: translateY(-1px);
-    }
-
-    .direct-threads-btn svg {
-      width: 13px;
-      height: 13px;
-      fill: currentColor;
-    }
-
-    /* トースト通知 */
-    .toast {
-      position: fixed;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%) translateY(100px);
-      background: rgba(15, 23, 42, 0.92);
-      color: #ffffff;
-      padding: 10px 18px;
-      border-radius: 30px;
-      font-size: 13px;
+    .edit-btn {
+      font-size: 12px;
       font-weight: 600;
-      display: flex;
+      color: var(--accent);
+      background: none;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
       align-items: center;
-      gap: 8px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-      backdrop-filter: blur(8px);
-      z-index: 1000;
-      opacity: 0;
-      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-      pointer-events: none;
-      white-space: nowrap;
+      gap: 4px;
+      padding: 4px 6px;
+      border-radius: 4px;
+    }
+    .edit-btn:hover {
+      background: #e0f2fe;
     }
 
-    .toast.show {
-      transform: translateX(-50%) translateY(0);
-      opacity: 1;
-    }
-
-    /* ランダムピックアップ モーダル */
+    /* モーダル */
     .modal-overlay {
       display: none;
       position: fixed;
       inset: 0;
       background: rgba(15, 23, 42, 0.6);
       backdrop-filter: blur(4px);
-      z-index: 2000;
+      z-index: 1000;
       align-items: center;
       justify-content: center;
       padding: 16px;
@@ -543,159 +423,169 @@
     }
 
     .modal-box {
-      background: white;
+      background: #fff;
+      border-radius: 16px;
       width: 100%;
-      max-width: 540px;
-      border-radius: 20px;
-      padding: 20px;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.25);
-      animation: popIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      max-width: 600px;
+      max-height: 90vh;
       display: flex;
       flex-direction: column;
-      max-height: 90vh;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+      overflow: hidden;
+      animation: modalFadeIn 0.2s ease-out;
     }
 
-    @keyframes popIn {
-      0% { transform: scale(0.9); opacity: 0; }
-      100% { transform: scale(1); opacity: 1; }
+    @keyframes modalFadeIn {
+      from { transform: scale(0.96); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
     }
 
     .modal-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--card-border);
       display: flex;
-      align-items: center;
       justify-content: space-between;
-      margin-bottom: 12px;
+      align-items: center;
     }
 
-    .modal-title {
-      font-size: 15px;
-      font-weight: 800;
+    .modal-title-group {
       display: flex;
       align-items: center;
-      gap: 6px;
-      color: #0f766e;
-    }
-
-    .modal-close-btn {
-      background: #f1f5f9;
-      border: none;
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      font-size: 16px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-muted);
-    }
-
-    .modal-body {
-      overflow-y: auto;
-      margin-bottom: 16px;
-      background: #f8fafc;
-      padding: 14px;
-      border-radius: 12px;
-      border: 1px solid #e2e8f0;
-      font-size: 13.5px;
-      line-height: 1.7;
-      white-space: pre-wrap;
-    }
-
-    .modal-footer {
-      display: flex;
       gap: 8px;
     }
 
-    .modal-btn {
-      flex: 1;
-      padding: 10px;
-      border-radius: 12px;
-      font-size: 13px;
-      font-weight: 700;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      text-decoration: none;
+    .modal-close {
+      background: none;
       border: none;
-      transition: all 0.15s;
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+      color: var(--text-dim);
+      padding: 4px;
     }
 
-    .modal-btn-copy {
-      background: #0f766e;
-      color: white;
-    }
-    .modal-btn-copy:hover {
-      background: #115e59;
-    }
-
-    .modal-btn-threads {
-      background: #000000;
-      color: white;
-    }
-    .modal-btn-threads:hover {
-      background: #262626;
+    .modal-body {
+      padding: 16px 18px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
     }
 
-    .modal-btn-reroll {
-      background: #f1f5f9;
+    .edit-textarea {
+      width: 100%;
+      min-height: 180px;
+      padding: 12px;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 13.5px;
+      line-height: 1.6;
+      resize: vertical;
+      outline: none;
+    }
+    .edit-textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.15);
+    }
+
+    .char-count {
+      font-size: 11px;
+      color: var(--text-dim);
+      text-align: right;
+    }
+
+    /* 予約設定ブロック */
+    .schedule-box {
+      background: #f8fafc;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .schedule-title {
+      font-size: 12px;
+      font-weight: 700;
       color: var(--text-main);
-      flex: 0 0 44px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
-    .modal-btn-reroll:hover {
-      background: #e2e8f0;
+    .schedule-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .schedule-input {
+      flex: 1;
+      min-width: 200px;
+      padding: 6px 10px;
+      font-size: 13px;
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      background: #fff;
     }
 
-    .empty-state {
-      text-align: center;
-      padding: 40px 16px;
-      color: var(--text-muted);
-      font-size: 14px;
+    .modal-footer {
+      padding: 12px 18px;
+      border-top: 1px solid var(--card-border);
+      background: #fafafa;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #1e293b;
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+      z-index: 2000;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      pointer-events: none;
+    }
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
     }
   </style>
 </head>
 <body>
 
-  <!-- 固定ヘッダー -->
-  <header class="sticky-header">
+  <!-- ヘッダー -->
+  <header class="header-wrap">
     <div class="header-inner">
-      <div class="profile-bar">
-        <div class="profile-info">
-          <div class="avatar-wrap">大</div>
-          <div class="profile-meta">
-            <div class="title">
-              カズヒロ｜医療教育DX <span class="badge-pt">PT歴22年</span>
-            </div>
-            <div class="subtitle">@csdkotsuka ｜ 臨床実習・教育改革・INTEVE</div>
-          </div>
+      <div class="header-top">
+        <div class="brand-title">
+          <span>🧵 Threads 運用ダッシュボード</span>
+          <span class="brand-badge">理学療法教育DX</span>
+          <span id="syncStatus" class="sync-status">
+            <span id="syncDot" class="sync-dot"></span>
+            <span id="syncText">接続中...</span>
+          </span>
         </div>
-
-        <div class="header-links">
-          <a href="https://www.threads.net/@csdkotsuka" target="_blank" rel="noopener noreferrer" class="ext-btn ext-btn-threads">
-            Threads
-          </a>
-          <a href="https://note.com/csdkazuhiro" target="_blank" rel="noopener noreferrer" class="ext-btn ext-btn-note">
-            note
-          </a>
+        <div class="action-bar">
+          <button class="btn" onclick="openRandomPicker()">🎲 ランダム選出</button>
         </div>
-      </div>
-
-      <!-- ランダム & シャッフル操作バー -->
-      <div class="random-action-bar">
-        <button class="random-btn" onclick="openRandomPicker()">
-          🎲 今日の投稿をランダム選出！
-        </button>
-        <button id="shuffleToggleBtn" class="shuffle-toggle-btn" onclick="toggleShuffle()">
-          🔀 シャッフル表示: <span id="shuffleStateText">OFF</span>
-        </button>
       </div>
 
       <!-- 進捗セクション -->
       <div class="progress-section">
         <div class="progress-labels">
-          <span>進捗状況</span>
+          <span id="progressStats">進捗状況</span>
           <span id="progressText">0 / 100 完了 (0%)</span>
         </div>
         <div class="progress-bar-bg">
@@ -707,562 +597,115 @@
       <div class="filter-controls">
         <input type="text" id="searchInput" class="search-box" placeholder="🔍 キーワード検索（例: 実習, AI, 歩行, 国家試験）" oninput="renderPosts()">
 
-        <div style="display: flex; gap: 8px;">
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: space-between;">
           <div class="filter-tabs">
-            <button class="tab-btn active" data-filter="all" onclick="setFilter('all')">すべて (100)</button>
-            <button class="tab-btn" data-filter="unposted" onclick="setFilter('unposted')">未投稿 (100)</button>
-            <button class="tab-btn" data-filter="posted" onclick="setFilter('posted')">完了 (0)</button>
+            <button class="tab-btn active" data-filter="all" onclick="setStatusFilter('all')">すべて (<span id="countAll">0</span>)</button>
+            <button class="tab-btn" data-filter="stock" onclick="setStatusFilter('stock')">📝 ストック (<span id="countStock">0</span>)</button>
+            <button class="tab-btn" data-filter="scheduled" onclick="setStatusFilter('scheduled')">📅 予約中 (<span id="countScheduled">0</span>)</button>
+            <button class="tab-btn" data-filter="published" onclick="setStatusFilter('published')">✅ 投稿済み (<span id="countPublished">0</span>)</button>
           </div>
-        </div>
 
-        <select id="catFilter" class="category-select" onchange="renderPosts()">
-          <option value="all">📁 すべてのカテゴリー（全5ジャンル）</option>
-          <option value="実習・教育の本音">実習・教育の本音 (20本)</option>
-          <option value="医療教育DX・業務効率化">医療教育DX・業務効率化 (20本)</option>
-          <option value="PTのキャリア・未来">PTのキャリア・未来 (20本)</option>
-          <option value="臨床思考・リハビリのリアル">臨床思考・リハビリのリアル (20本)</option>
-          <option value="教員室のつぶやき・マインド">教員室のつぶやき・マインド (20本)</option>
-        </select>
+          <select id="catFilter" class="category-select" onchange="renderPosts()">
+            <option value="all">📁 すべてのカテゴリー</option>
+            <option value="実習・教育の本音">実習・教育の本音</option>
+            <option value="医療教育DX・業務効率化">医療教育DX・業務効率化</option>
+            <option value="PTのキャリア・未来">PTのキャリア・未来</option>
+            <option value="臨床思考・リハビリのリアル">臨床思考・リハビリのリアル</option>
+            <option value="教員室のつぶやき・マインド">教員室のつぶやき・マインド</option>
+          </select>
+        </div>
       </div>
     </div>
   </header>
 
   <!-- 投稿リスト一覧 -->
   <main class="main-wrap">
-    <div id="postsContainer" class="posts-container"></div>
+    <div id="postsContainer" class="posts-container">
+      <div style="text-align: center; padding: 40px; color: #94a3b8; grid-column: 1/-1;">
+        データを読み込み中...
+      </div>
+    </div>
   </main>
 
   <!-- トースト通知 -->
   <div id="toast" class="toast">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="20 6 9 17 4 12"></polyline>
-    </svg>
-    <span>本文をクリップボードにコピーしました！</span>
+    <span>通知メッセージ</span>
   </div>
 
-  <!-- ランダム選出モーダル -->
+  <!-- 編集・予約モーダル -->
   <div id="modalOverlay" class="modal-overlay" onclick="closeModal(event)">
     <div class="modal-box" onclick="event.stopPropagation()">
       <div class="modal-header">
-        <div class="modal-title">
-          <span>🎲 本日のおすすめ投稿</span>
-          <span id="modalMetaBadge" class="cat-badge" style="font-size: 10px;"></span>
+        <div class="modal-title-group">
+          <span id="modalDayBadge" class="day-badge" style="font-size: 13px;"></span>
+          <span id="modalCatBadge" class="cat-badge"></span>
+          <span id="modalStatusBadge" class="status-badge"></span>
         </div>
-        <button class="modal-close-btn" onclick="closeModalDirect()">&times;</button>
+        <button class="modal-close" onclick="closeModalDirect()">&times;</button>
       </div>
-      <div id="modalContent" class="modal-body"></div>
+
+      <div class="modal-body">
+        <div>
+          <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">
+            投稿テキスト（オンライン編集・自動同期）
+          </label>
+          <textarea id="modalEditTextarea" class="edit-textarea" oninput="updateModalCharCount()"></textarea>
+          <div id="modalCharCount" class="char-count">0 文字</div>
+        </div>
+
+        <!-- 予約設定 -->
+        <div class="schedule-box">
+          <div class="schedule-title">
+            <span>📅 投稿日時の予約設定</span>
+          </div>
+          <div class="schedule-row">
+            <input type="datetime-local" id="modalScheduleInput" class="schedule-input">
+            <button class="btn btn-primary" onclick="saveScheduleTime()">予約日時を設定</button>
+            <button id="modalClearScheduleBtn" class="btn" style="display: none;" onclick="clearScheduleTime()">予約解除</button>
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted);">
+            ※ 予約日時に設定すると「予約中」ステータスになり、自動投稿ワーカーの対象になります。投稿直前まで変更可能です。
+          </div>
+        </div>
+
+        <!-- インサイト表示エリア（投稿済みの場合） -->
+        <div id="modalInsightsBox" class="schedule-box" style="display: none; background: #ecfdf5; border-color: #a7f3d0;">
+          <div class="schedule-title" style="color: #047857;">
+            <span>📊 Threads インサイト（リアクション・閲覧数）</span>
+          </div>
+          <div id="modalInsightsDetail" style="font-size: 12px; color: #065f46; display: flex; gap: 12px; flex-wrap: wrap;"></div>
+        </div>
+      </div>
+
       <div class="modal-footer">
-        <button class="modal-btn modal-btn-reroll" onclick="rerollRandom()" title="もう一度引く">🎲</button>
-        <button id="modalCopyBtn" class="modal-btn modal-btn-copy" onclick="copyModalContent()">コピーする</button>
-        <a id="modalThreadsBtn" href="#" target="_blank" rel="noopener noreferrer" class="modal-btn modal-btn-threads">Threadsで投稿</a>
+        <div style="display: flex; gap: 6px;">
+          <button class="btn" onclick="copyModalText()">📋 コピー</button>
+          <a id="modalThreadsIntentBtn" href="#" target="_blank" rel="noopener noreferrer" class="btn">
+            🧵 Threadsで手動投稿
+          </a>
+        </div>
+        <div style="display: flex; gap: 6px;">
+          <button id="modalTogglePublishBtn" class="btn" onclick="togglePublishFromModal()">
+            ✅ 投稿済みにする
+          </button>
+          <button class="btn btn-primary" onclick="saveContentEdit()">💾 保存する</button>
+        </div>
       </div>
     </div>
   </div>
 
   <script>
-    const POSTS_DATA = [
-  {
-    "Day": "Day 1",
-    "CategoryShort": "実習・教育の本音",
-    "Content": "実習生の「てにをは」や誤字脱字を赤ペンで直す深夜23時。「俺は何の仕事をしてるんだっけ…」と虚しくなったことはありませんか？\n\n実習で本当に育てるべきは、文章力ではなく「なぜその評価を選び、なぜそのアプローチに至ったか」という臨床思考プロセス。\n\nAIやデジタルで定型的な添削を省力化し、空いた時間で学生と『思考の対話』を交わす。これこそが本来の臨床実習指導だと信じています。\n\n#理学療法士 #臨床実習 #理学療法士の卵 #実習指導"
-  },
-  {
-    "Day": "Day 2",
-    "CategoryShort": "実習・教育の本音",
-    "Content": "「最近の学生は質問してこない」「受け身すぎる」という声を指導者会議でよく耳にします。\n\nでも、学生に本音を聞くと「初日に質問したら『それくらい自分で調べなさい』と言われて怖くて聞けなくなった」というケースが驚くほど多い。\n\n質問を引き出せないのは学生のやる気ではなく、指導側の「心理的安全性」の設計ミスかもしれません。\n\n#実習指導者 #理学療法教育 #臨床実習 #PT学生"
-  },
-  {
-    "Day": "Day 3",
-    "CategoryShort": "実習・教育の本音",
-    "Content": "デイリーノート（実習日誌）のページ数や文字数で努力を測る文化、そろそろ終わりにしませんか。\n\n夜中の2時までレポートを書いて睡眠不足でボーッと病棟に立つ実習生。患者さんのリスク管理の観点からも本末転倒です。\n\n日誌は短くていい。「今日の臨床で一番ハッとした気づき」を3行書くだけで十分深いディスカッションは生まれます。\n\n#デイリーノート #理学療法士養成校 #実習生 #医療教育"
-  },
-  {
-    "Day": "Day 4",
-    "CategoryShort": "実習・教育の本音",
-    "Content": "見学型実習から参加型臨床実習（クリニカル・クラークシップ：CCS）への転換。制度としては進みましたが、現場の実態はまだ「後ろから見学させてレポートを書かせる」旧態依然の施設も少なくありません。\n\n指導者の背中を見せるだけでなく、「バイタル測定」「歩行介助の一部」など、できる範囲でチームの一員として手を動かしてもらう。\n\n当事者意識が芽生えた瞬間、学生の目の輝きが劇的に変わります。\n\n#クリニカルクラークシップ #CCS #臨床実習 #理学療法士"
-  },
-  {
-    "Day": "Day 5",
-    "CategoryShort": "実習・教育の本音",
-    "Content": "実習地訪問で一番気を遣うのは、指導者と学生の「表情の温度差」を読み取ること。\n\n指導者「順調にやってますよ」\n学生「はい…大丈夫です（視線が泳ぐ）」\n\nこのサインを見逃すと、数日後に突然の体調不良やリタイアに繋がることがあります。\n\n教員の役割は、書類上の巡回ではなく、言葉にできない違和感を拾い上げて間を取り持つクッションになることです。\n\n#教員の日常 #実習巡回 #PT教員 #学生支援"
-  },
-  {
-    "Day": "Day 6",
-    "CategoryShort": "実習・教育の本音",
-    "Content": "「自分が若い頃はもっと厳しく指導された」\n\nこの経験則をそのまま今の学生にぶつけると、指導ではなく単なる感情の押し付けになりがちです。\n\n私たちが学んできた時代と今では、求められる情報量も医療倫理もハラスメント基準も全く違う。\n\n指導法も、治療手技と同じように定期的な「アップデート」が不可欠です。\n\n#理学療法士 #指導者の悩み #アップデート #医療教育"
-  },
-  {
-    "Day": "Day 7",
-    "CategoryShort": "実習・教育の本音",
-    "Content": "ケースノート指導でありがちなのが、「評価結果の羅列」で終わってしまう学生のレポート。\n\nROMが何度、MMTがいくつ、と数字は並ぶけれど、「だからこの患者さんは立ち上がれないのか？」という考察が一行もない。\n\n「数字を集めるのが仕事じゃない。その数字から患者さんの生活の困りごとを想像するのがPTの仕事だよ」\n\nこの視点を手渡すことが、ケース指導の一番の醍醐味です。\n\n#ケースノート #症例報告 #臨床推論 #理学療法士"
-  },
-  {
-    "Day": "Day 8",
-    "CategoryShort": "実習・教育の本音",
-    "Content": "実習生が指導者に「何か質問はある？」と聞かれてフリーズする理由。\n\nそれは「何を分かっていないのかすら言語化できていない」からです。\n\nそんな時は「さっきの移乗動作、麻痺側の足の位置に注目してみてどう思った？」と、観察のフォーカスを絞って問いかけてあげる。\n\n問いの解像度を上げるだけで、学生の言葉は一気に出てくるようになります。\n\n#質問力 #指導のコツ #理学療法教育 #PT実習"
-  },
-  {
-    "Day": "Day 9",
-    "CategoryShort": "実習・教育の本音",
-    "Content": "養成校の教員と病院の臨床実習指導者（バイザー）。お互いに多忙を極める中で、どうしても連絡が後手になりがち。\n\n学生が悩んでいる情報をタイムリーに共有できず、問題が大きくなってから慌てて電話協議…という経験はありませんか？\n\n日々の記録をクラウドやシステムでリアルタイムに共有できれば、小さなSOSを早期にキャッチして未然に対処できます。仕組みで解決できる課題は多いはず。\n\n#INTEVE #教育DX #実習連携 #理学療法士"
-  },
-  {
-    "Day": "Day 10",
-    "CategoryShort": "実習・教育の本音",
-    "Content": "実習生にとって最も辛いのは「理不尽なダメ出し」ではなく、「自分の存在をスルーされること」です。\n\n朝の挨拶を返してもらえない、何時間も部屋の隅で放置される。これだけで学生の自己肯定感はあっという間に底をつきます。\n\n「おはよう、今日の見学楽しみにしてたよ」のひと言があるだけで、実習地の空気は180度変わります。\n\n#心理的安全性 #実習生 #医療従事者 #教育"
-  },
-  {
-    "Day": "Day 11",
-    "CategoryShort": "実習・教育の本音",
-    "Content": "「模範解答」を求めすぎる学生が増えたと感じませんか？\n\n学校のテストは正解が1つですが、臨床に唯一絶対の正解はありません。同じ大腿骨頸部骨折でも、患者さんの価値観や生活環境によってゴールは全く変わる。\n\n「教科書と違うから間違い」ではなく、「なぜその選択をしたのか」を自分の言葉で語れる学生を育てたい。\n\n#臨床思考 #理学療法 #答えのない問い #養成校"
-  },
-  {
-    "Day": "Day 12",
-    "CategoryShort": "実習・教育の本音",
-    "Content": "指導者が患者さんと接しているときの「声のトーン」「触れ方」「目線」。\n\n実は、学生が最も影響を受けるのは口頭での指導内容ではなく、指導者のそうした「無意識の立ち振る舞い」です。\n\nどんなに立派な理論を語るよりも、患者さんに誠実に向き合う背中を見せることが、一番の生きた教育になります。\n\n#理学療法士の背中 #プロフェッショナリズム #臨床教育 #理学療法"
-  },
-  {
-    "Day": "Day 13",
-    "CategoryShort": "実習・教育の本音",
-    "Content": "実習最終日、涙を流しながら「先生、私やっぱり理学療法士になります！」と報告してくれる学生。\n\n初日は不安でガチガチだった子が、数週間の臨床現場で患者さんから感謝され、人として大きく成長して帰ってくる。\n\nこの瞬間に立ち会えるからこそ、実習指導者も教員も、どんなに大変でもこの仕事を続けられるのだと思います。\n\n#実習終了 #学生の成長 #理学療法士 #教員の喜び"
-  },
-  {
-    "Day": "Day 14",
-    "CategoryShort": "実習・教育の本音",
-    "Content": "実習指導で失敗したとき、指導者が学生に「ごめん、今の私の説明わかりにくかったね」と素直に言えるかどうか。\n\n指導者＝完璧でなければならないという鎧を脱ぐと、学生との信頼関係は格段に深まります。\n\n弱さを見せ合える関係性の中でこそ、本当の意味での学び合いが成立するのではないでしょうか。\n\n#指導者の器 #謙虚さ #コミュニケーション #リハビリ教育"
-  },
-  {
-    "Day": "Day 15",
-    "CategoryShort": "実習・教育の本音",
-    "Content": "「最近の学生は打たれ弱い」と言われるけれど、彼らは打たれ弱いのではなく「納得感のない理不尽」に耐える意味を見出せないだけ。\n\nなぜこの課題が必要なのか、なぜこの見学をするのか。目的と文脈を丁寧に共有すれば、今の若い人たちは驚くほどの集中力と行動力を発揮してくれます。\n\n納得感の設計が指導の第一歩です。\n\n#Z世代 #教育論 #理学療法士 #若手育成"
-  },
-  {
-    "Day": "Day 16",
-    "CategoryShort": "実習・教育の本音",
-    "Content": "実習期間中の学生カルテや実習記録、手書きで何枚も複写させていませんか？\n\n手書きの良さがあるのも分かりますが、臨床現場が電子カルテ全盛の時代に、実習生だけが手書きで腱鞘炎になりながら清書している構図には違和感があります。\n\nタイピングや音声入力、情報整理のスキルを実習中から身につける方が、よほど就職後の即戦力に繋がります。\n\n#電子カルテ #実習記録 #ペーパーレス #医療DX"
-  },
-  {
-    "Day": "Day 17",
-    "CategoryShort": "実習・教育の本音",
-    "Content": "実習生が「担当患者さんの前でうまく話せません」と落ち込んでいたとき。\n\n「うまく話そうとしなくていいよ。まずは患者さんの話を誰よりも真剣に聴くことから始めよう」と伝えました。\n\nリハビリは技を披露する場ではなく、患者さんの人生に伴走する場。聴く力こそが、理学療法士の最大の武器です。\n\n#傾聴 #リハビリテーション #理学療法士 #コミュニケーション"
-  },
-  {
-    "Day": "Day 18",
-    "CategoryShort": "実習・教育の本音",
-    "Content": "実習指導の評価表をつける時、減点方式でチェックしていませんか？\n\n「これができていない」「ここが足りない」ばかり探していると、学生の長所やユニークな着眼点が押し潰されてしまいます。\n\n「患者さんへの挨拶が誰よりも明るい」「観察眼が鋭い」など、まずはその子のストロングポイントを言語化して伸ばす加点方式の指導を意識したいですね。\n\n#加点方式 #ポジティブフィードバック #教育指導 #理学療法"
-  },
-  {
-    "Day": "Day 19",
-    "CategoryShort": "実習・教育の本音",
-    "Content": "実習生を受け入れる臨床バイザー自身の業務過多。これが実習教育の質を落とす最大の根本原因だったりします。\n\n普段の患者枠を1日18単位抱えながら、その合間に学生の指導と記録添削…どう考えても無理ゲーです。\n\n施設全体で「教育を業務として位置づける」仕組みと、教員側の手厚いバックアップが揃って初めて、健全な実習教育が成り立ちます。\n\n#バイザーの負担 #実習受け入れ #働き方改革 #リハビリ科"
-  },
-  {
-    "Day": "Day 20",
-    "CategoryShort": "実習・教育の本音",
-    "Content": "「先生、実習が怖くて夜眠れません」\n\n毎年、実習出発前になると必ず数人の学生から相談を受けます。\n\n恐怖を感じるのは、患者さんの人生を預かることの重みを真剣に受け止めている証拠。無知で無鉄砲なより、何倍も素晴らしい素質です。\n\n「その怖さを抱えたまま現場に行こう。教員も指導者も全力で守るから」と伝えています。\n\n#実習前の不安 #学生相談 #理学療法士の卵 #教員の言葉"
-  },
-  {
-    "Day": "Day 21",
-    "CategoryShort": "医療教育DX・業務効率化",
-    "Content": "「クラウドは個人情報漏洩のリスクがあるから絶対に禁止！」\n\n医療機関や養成校でよくあるこの声。セキュリティ意識が高いのは素晴らしいことですが、その結果「USBメモリでの持ち歩き」や「紙カルテの山」という最もリスクの高い運用に逆戻りしていませんか？\n\nだからこそ僕が選んだのは、外部に出さない『完全オンプレミス×ローカルAI』という選択肢でした。\n\n#医療DX #学校DX #情報セキュリティ #ローカルAI"
-  },
-  {
-    "Day": "Day 22",
-    "CategoryShort": "医療教育DX・業務効率化",
-    "Content": "毎年数百件にのぼる臨床実習先への「承諾依頼書」「委嘱状」「施設情報照会」。\n\nこれらをWordとExcelの差し込み印刷で1件ずつ印刷し、封筒に三つ折りで詰めて切手を貼る作業…毎年どれだけの時間を溶かしていますか？\n\nワンクリックでデータ集約から文書生成、送付履歴の一元管理までできれば、教員は本来の仕事である「学生指導」に100時間以上戻せます。\n\n#業務効率化 #教務事務 #学校教育 #INTEVE"
-  },
-  {
-    "Day": "Day 23",
-    "CategoryShort": "医療教育DX・業務効率化",
-    "Content": "実習先の割り振り（仮配置）作業って、パズルのように頭を抱えますよね。\n\n学生の通学圏、希望領域、過去の受け入れ枠、男女比、指導者の相性…何十時間もかけてExcelとにらめっこ。\n\n条件をロジック化してシステム上で自動フィルタリング＆重複判定させるだけで、2週間かかっていた配置業務が半日で終わります。教員の睡眠時間を削る時代は終わり。\n\n#実習配置 #学校運営 #リハビリ養成校 #教員の働き方改革"
-  },
-  {
-    "Day": "Day 24",
-    "CategoryShort": "医療教育DX・業務効率化",
-    "Content": "「IT化やシステム導入を進めようとすると、ベテラン教員から大反対される」というお悩み。\n\n反対の理由は「機械が嫌い」なのではなく、「使いこなせない恥ずかしさ」や「今までのやり方を否定された喪失感」であることがほとんど。\n\nだからこそ、導入時は機能の凄さを語るのではなく、「先生の毎日のこの作業がボタン1つで楽になりますよ」という体験を小さく届けるのが鉄則です。\n\n#DX推進 #チェンジマネジメント #組織改革 #教員室"
-  },
-  {
-    "Day": "Day 25",
-    "CategoryShort": "医療教育DX・業務効率化",
-    "Content": "学校現場のDXで一番やってはいけないのは、「大手の巨大な汎用グループウェアをそのまま導入すること」。\n\n医療系専門学校の実習管理や国家試験対策は、あまりにも特殊で現場ルールが複雑すぎます。\n\n現場を22年経験した人間だからこそ分かる「痒い所に手が届く専用システム」でないと、結局Excel併用に戻ってしまうんですよね。\n\n#学校システム #現場主義 #システム開発 #INTEVE"
-  },
-  {
-    "Day": "Day 26",
-    "CategoryShort": "医療教育DX・業務効率化",
-    "Content": "Mac miniにローカルLLM（オープンソースAI）を載せて、学内・院内LANだけで完結するAI添削支援環境を作る。\n\nこれなら患者さんの個人情報も学生のプライバシーも1バイトたりとも外部インターネットに出ません。\n\n「セキュリティ」と「最新テクノロジーの恩恵」は二者択一じゃない。工夫次第で完全に両立できます。\n\n#ローカルLLM #生成AI #セキュリティ #医療系教育"
-  },
-  {
-    "Day": "Day 27",
-    "CategoryShort": "医療教育DX・業務効率化",
-    "Content": "学生の「立ち話」や「症例カンファレンス」の音声をAIで自動解析したらどうなるか？\n\n会話の中で「どんな医学用語が使えているか」「どこで議論が止まっているか」を可視化できれば、勘と経験に頼らない『データドリブンな学生指導』が可能になります。\n\n技術は学生を監視するためではなく、学生のつまずきを科学的に支援するために使うものです。\n\n#音声解析 #データドリブン #教育DX #理学療法教育"
-  },
-  {
-    "Day": "Day 28",
-    "CategoryShort": "医療教育DX・業務効率化",
-    "Content": "教員室の「電話対応」の多さ。\n\n「〇〇実習地の〇〇先生から折り返し電話希望です」「学生の出欠確認の連絡です」と、1日中電話が鳴り止まない。\n\n実習生・施設・学校をつなぐ専用ポータル（INTEVE LINKなど）があれば、ステータス確認もメッセージ送信もチャット感覚で非同期に完結します。\n\nまとまった集中時間を確保することが、良い講義の源泉です。\n\n#集中時間 #業務改善 #学校教員 #スマートスクール"
-  },
-  {
-    "Day": "Day 29",
-    "CategoryShort": "医療教育DX・業務効率化",
-    "Content": "国家試験対策の過去問演習。学生に紙で解かせて丸付けさせるだけでは、全体の平均点しか見えません。\n\n「この学生は解剖学の筋起始停止は取れているが、神経伝導速度の計算問題で毎回落としている」\n\n問題ジャンルごとの正答率推移をグラフで瞬時に可視化できれば、教員はピンポイントで個別指導が打てます。データ分析は愛のカタチです。\n\n#国試対策 #PT国試 #データ分析 #個別最適化"
-  },
-  {
-    "Day": "Day 30",
-    "CategoryShort": "医療教育DX・業務効率化",
-    "Content": "「前任者からの引き継ぎ資料が、分厚い紙ファイル3冊と謎のExcelマクロでした」\n\n養成校教員のあるあるですよね。担当教員が変わるたびに過去のデータが行方不明になり、実習先に同じ質問をしてご迷惑をおかけする…。\n\n実習施設との過去10年分の履歴（承諾数・指導者・学生評価）を一元データベース化しておけば、担当引き継ぎは1時間で完了します。\n\n#属人化解消 #引き継ぎ #データベース #学校管理"
-  },
-  {
-    "Day": "Day 31",
-    "CategoryShort": "医療教育DX・業務効率化",
-    "Content": "紙の書類をスキャンしてPDFにしてメールで送る。\n\nこれ、「ペーパーレス化」ではあっても「DX（デジタル・トランスフォーメーション）」ではありません。\n\n紙の手順をそのまま電子化するのではなく、そもそも「その書類を作るプロセス自体をゼロにできないか？」と業務フローそのものを再設計することが真のDXです。\n\n#DXの本質 #業務フロー改善 #ペーパーレス #生産性向上"
-  },
-  {
-    "Day": "Day 32",
-    "CategoryShort": "医療教育DX・業務効率化",
-    "Content": "臨床現場のリハビリ記録も、音声入力の普及で劇的に変わりつつあります。\n\n治療しながら、あるいは患者さんの移動中に要点をスマホに向かって喋るだけで、綺麗なカルテ下書きが整う。\n\nキーボードに向かって下を向く時間を減らし、患者さんの顔を見る時間を1分でも増やす。そのためのテクノロジーです。\n\n#音声入力 #電子カルテ #リハビリ現場 #作業効率化"
-  },
-  {
-    "Day": "Day 33",
-    "CategoryShort": "医療教育DX・業務効率化",
-    "Content": "学生の出欠管理、まだ紙の出欠カードを手集計していませんか？\n\nICカードリーダーやスマホ認証で自動集計し、出席率が一定ラインを下回ったら担任教員へ自動アラート。\n\n「気づいた時には留年確定だった」という最悪の事態を防ぐためのセーフティネットも、デジタルの力で構築できます。\n\n#出欠管理 #学生支援 #留年防止 #専門学校DX"
-  },
-  {
-    "Day": "Day 34",
-    "CategoryShort": "医療教育DX・業務効率化",
-    "Content": "「ITに強い若手教員にすべてのシステム管理が集中してパンクする」という学校の落とし穴。\n\n特定の属人的スキルに依存した仕組みは必ず破綻します。\n\nマニュアルを見なくても直感的に操作できるUI（ユーザーインターフェース）と、誰でも運用できる自動化フローを設計すること。これがシステム開発者の最大の責任です。\n\n#UIデザイン #属人化防止 #システム設計 #教員の働き方"
-  },
-  {
-    "Day": "Day 35",
-    "CategoryShort": "医療教育DX・業務効率化",
-    "Content": "「AIに学生のレポートを読ませるなんて手抜きだ」という批判について。\n\n私たちはAIに指導を丸投げしたいわけではありません。\n\n文法チェックや語句の確認など「機械が得意な作業」をAIに任せることで、人間は「患者さんへの共感の深さ」や「臨床推論の論理性」といった『人間にしか指導できない本質』に100%集中できるのです。\n\n#AIと教育 #指導の質 #教育DX #共存"
-  },
-  {
-    "Day": "Day 36",
-    "CategoryShort": "医療教育DX・業務効率化",
-    "Content": "実習先からの「謝礼金計算」「交通費・宿泊費の精算」。\n\n年度末になると経理書類の山に埋もれて確定申告並みのストレスを抱える実習担当教員たち。\n\n実習日程と連動して自動で謝礼金台帳と支払調書が生成される仕組みを作った時、教員たちから「人生で一番助かった」と本気で感謝されました。\n\n#年度末業務 #経理事務 #教員の負担軽減 #INTEVE"
-  },
-  {
-    "Day": "Day 37",
-    "CategoryShort": "医療教育DX・業務効率化",
-    "Content": "「便利なツールを導入したのに、誰も使ってくれない」問題。\n\n原因の9割は、「初期設定やログインがめんどくさい」こと。\n\nパスワードの再発行に管理者の手間がかかったり、多段階認証でつまずいたり。現場で使われるツールは「ログインが簡単で、画面を開いた瞬間にやるべきことが分かる」シンプルさが命です。\n\n#ツール導入 #定着化 #ユーザー体験 #学校DX"
-  },
-  {
-    "Day": "Day 38",
-    "CategoryShort": "医療教育DX・業務効率化",
-    "Content": "指導者会議の出欠確認、案内状の発送、当日の出欠票集計。\n\nこれまではハガキの返送を待って1枚ずつ手入力…なんて光景が普通でした。\n\nWebフォーム連携と自動名簿作成を導入しただけで、集計作業時間は1/10に圧縮。浮いた時間で、指導者の先生方とじっくり情報交換する時間を生み出せます。\n\n#指導者会議 #臨床実習 #業務削減 #スマートスクール"
-  },
-  {
-    "Day": "Day 39",
-    "CategoryShort": "医療教育DX・業務効率化",
-    "Content": "テクノロジーは「人を切るため」にあるのではなく、「人が人にしかできない温かいケアをする時間を生み出すため」にある。\n\n医療も教育も、本質は『心を通わせるコミュニケーション』です。\n\n事務作業の自動化はその土台作りに過ぎません。\n\n#テクノロジーの本質 #教育の原点 #医療従事者 #理学療法"
-  },
-  {
-    "Day": "Day 40",
-    "CategoryShort": "医療教育DX・業務効率化",
-    "Content": "22年間の教員生活の中で痛感したのは、「教員の笑顔の数と、学生の成長速度は完全に比例する」ということ。\n\n業務に追われて疲れ果てた教員の背中を見て、学生が夢を持てるはずがありません。\n\nDXで無駄な労力を削ぎ落とし、教員がイキイキと教壇に立てる環境を作ること。それが巡り巡って未来の医療の質を守る道です。\n\n#教員のメンタル #働き方改革 #医療教育の未来 #笑顔"
-  },
-  {
-    "Day": "Day 41",
-    "CategoryShort": "PTのキャリア・未来",
-    "Content": "「理学療法士は給料が上がらないからオワコン」\n\nSNSでそんな悲観論を見かけるたびに、少し違和感を覚えます。\n\n確かに診療報酬の枠内だけで生きていこうとすれば上限は見えている。でも、PTが持つ「動作分析の目」「解剖生理学の知識」「対人コミュニケーション力」は、ヘルスケア・IT・教育など他業界から見れば喉から手が出るほど欲しい超強力なスキルです。\n\n#理学療法士のキャリア #スキルのかけ算 #市場価値 #リハビリ職"
-  },
-  {
-    "Day": "Day 42",
-    "CategoryShort": "PTのキャリア・未来",
-    "Content": "20代〜30代で「臨床の腕」だけをひたすら磨いてきたPTが、40代になって体力低下や役職定年で立ち止まるケースを多く見てきました。\n\n自分の手技（技術）を高めるのは素晴らしい。でも同時に「教育する力」「仕組み化する力」「組織を動かす力」を育てておかないと、キャリアの選択肢が狭まってしまいます。\n\n早いうちから『第2の武器』を持つ意識を。\n\n#キャリア戦略 #理学療法士40代 #リスキリング #将来設計"
-  },
-  {
-    "Day": "Day 43",
-    "CategoryShort": "PTのキャリア・未来",
-    "Content": "僕が22年間勤めた養成校の教員を続けながら、プログラミングを学び自社システムを開発するようになった理由。\n\nそれは「現場の課題を一番よく知っている当事者自身がツールを作らなければ、本当に使いやすいものは生まれない」と痛感したからです。\n\nPT×IT。異分野の掛け算こそが、誰も見たことのない価値を生み出す源泉になります。\n\n#理学療法士 #プログラミング学習 #起業 #越境学習"
-  },
-  {
-    "Day": "Day 44",
-    "CategoryShort": "PTのキャリア・未来",
-    "Content": "「理学療法士の資格を活かして独立したいけれど、何から始めればいいですか？」と相談された時。\n\nいきなり整体院を開業する前に、「誰のどんな悩みを解決できる自分なのか」を徹底的に言語化することをお勧めしています。\n\n手技の名前を売るのではなく、困っている人の『解決策』を売る。ビジネスの基本はリハビリの問診と全く同じです。\n\n#PT独立 #開業準備 #ポジショニング #マーケティング基礎"
-  },
-  {
-    "Day": "Day 45",
-    "CategoryShort": "PTのキャリア・未来",
-    "Content": "保険診療のリハビリは「病気やケガをしてからのアプローチ（治療）」。\n\nでもこれからの超高齢社会で本当に価値が高まるのは、「病気や要介護にさせないアプローチ（予防・健康寿命の延伸）」。\n\n病院の壁を飛び越えて、地域コミュニティや企業健診、シニアフィットネスの領域に打って出るPTがもっと増えていいはずです。\n\n#予防医療 #健康寿命 #理学療法士の可能性 #自費リハビリ"
-  },
-  {
-    "Day": "Day 46",
-    "CategoryShort": "PTのキャリア・未来",
-    "Content": "「教科書を上手に教えられる先生」よりも、学生の心に深く刺さるのは「社会と臨床のリアルを語れる先生」の言葉です。\n\n教科書の内容はスマホでググれば5秒で出てくる時代。\n\n教員自身が現場や実社会で汗をかき、失敗し、挑戦し続けている姿を見せることこそが、最高のキャリア教育になります。\n\n#教員論 #リアルな学び #理学療法士養成校 #背中を見せる"
-  },
-  {
-    "Day": "Day 47",
-    "CategoryShort": "PTのキャリア・未来",
-    "Content": "新卒PTに伝えているアドバイス。\n\n「最初の3年間は、とにかく症例数をこなして泥臭く患者さんに向き合いなさい。その時に流した汗と失敗の数が、10年後のあなたの揺るぎない土台になるから」\n\n近道を探したくなる時代だからこそ、現場での一次情報の蓄積は何物にも代えがたい財産になります。\n\n#新人PT #理学療法士1年目 #臨床の基礎 #下積み"
-  },
-  {
-    "Day": "Day 48",
-    "CategoryShort": "PTのキャリア・未来",
-    "Content": "「学会発表や論文執筆なんて臨床の役には立たない」という極論。\n\n確かに日々の臨床が最優先ですが、自分の実践を客観的なデータとしてまとめ、第三者の批判に晒す経験は「論理的思考力」を劇的に鍛えてくれます。\n\n感覚派のセラピストから、エビデンスを語れるセラピストへの脱皮。学術活動はそのための絶好の訓練場です。\n\n#学術研究 #学会発表 #エビデンス #理学療法士の成長"
-  },
-  {
-    "Day": "Day 49",
-    "CategoryShort": "PTのキャリア・未来",
-    "Content": "医療従事者が「お金やビジネスの話」をすることをタブー視する風潮。\n\nでも、持続可能な経営基盤や正当な対価がなければ、良質な医療や教育を提供し続けることはできません。\n\nお金の勉強をすることは、自分自身の生活を守り、大切な患者さんや学生を守るための必須リテラシーです。\n\n#マネーリテラシー #医療経営 #PTの働き方 #自立"
-  },
-  {
-    "Day": "Day 50",
-    "CategoryShort": "PTのキャリア・未来",
-    "Content": "理学療法士という国家資格は、「ゴール」ではなく「人生の自由度を広げるパスポート」です。\n\n病院勤務、訪問リハ、クリニック、教員、スポーツトレーナー、福祉機器開発、行政、起業…\n\nこんなにも多種多様な生き方が選べる資格は他にありません。枠に囚われず、自分の好奇心に従ってキャリアをデザインしていきましょう。\n\n#キャリアデザイン #国家資格 #理学療法士の未来 #可能性"
-  },
-  {
-    "Day": "Day 51",
-    "CategoryShort": "PTのキャリア・未来",
-    "Content": "理学療法士が「発信」を始めるメリット。\n\nnoteやSNSで自分の考えを定期的に言語化していると、思考の解像度が上がるだけでなく、全国の志の高い仲間と繋がることができます。\n\n病院の狭い人間関係だけに閉じこもらず、外の世界へアンテナを伸ばすだけで、人生の選択肢は一気に何倍にも広がります。\n\n#情報発信 #note #SNS運用 #理学療法士の繋がり"
-  },
-  {
-    "Day": "Day 52",
-    "CategoryShort": "PTのキャリア・未来",
-    "Content": "「後輩の指導係になったけれど、どう接していいか分からない」という若手リーダーへ。\n\n教えようと気負う必要はありません。「昨日よりできるようになったこと」を一緒に見つけて喜んであげるだけでいい。\n\nリーダーの役目は引っ張ることではなく、後輩が安心して挑戦できる環境を作ることです。\n\n#若手リーダー #後輩指導 #プリセプター #理学療法士"
-  },
-  {
-    "Day": "Day 53",
-    "CategoryShort": "PTのキャリア・未来",
-    "Content": "AI時代に生き残る理学療法士の条件。\n\n画像診断や文献検索、治療プランの立案アシストはAIが圧倒的な速度でやってくれるようになる。\n\nだからこそ人間に残るのは、「患者さんの震える手にそっと触れて勇気づけること」「絶望している人の話を黙って聴き続けること」。\n\n共感と人間性の価値が、今まで以上に輝く時代が来ます。\n\n#AI時代の医療 #ヒューマンタッチ #理学療法士の本質 #共感力"
-  },
-  {
-    "Day": "Day 54",
-    "CategoryShort": "PTのキャリア・未来",
-    "Content": "リハビリテーション専門学校の定員割れや統廃合が進む今だからこそ。\n\n「選ばれる養成校」になるために必要なのは、パンフレットの綺麗さではなく、「教育現場の透明性」と「学生一人ひとりに伴走する手厚さ」。\n\nテクノロジーで事務作業を効率化し、その余力を100%学生との面談や個別支援に注ぎ込める学校だけが、次の10年を生き残ります。\n\n#学校経営 #養成校の生き残り #入試広報 #教育の質"
-  },
-  {
-    "Day": "Day 55",
-    "CategoryShort": "PTのキャリア・未来",
-    "Content": "理学療法士が「教員」を目指すということ。\n\n臨床で救える患者さんの数は1日せいぜい10〜20人。でも、優れたPTを1学年40人育てて世に送り出せば、間接的に何万人もの患者さんの未来を明るくできる。\n\nこのレバレッジの大きさに気づいた時、教育という仕事の底知れない魅力に震えます。\n\n#教員のやりがい #教育のレバレッジ #PT養成校 #理学療法士"
-  },
-  {
-    "Day": "Day 56",
-    "CategoryShort": "PTのキャリア・未来",
-    "Content": "「他人の評価」で生きるのをやめた瞬間から、キャリアは劇的に好転します。\n\n上司の顔色、職場の同調圧力、学会の権威。「こうあるべき」に縛られて疲弊していませんか？\n\n自分が本当に情熱を持てること、目の前の患者さんや学生が本当に喜んでくれることに全力を注ぐ。自分の評価軸で生きていきましょう。\n\n#自分軸 #マインドセット #医療職の生き方 #自由"
-  },
-  {
-    "Day": "Day 57",
-    "CategoryShort": "PTのキャリア・未来",
-    "Content": "医療の世界では「経験年数＝偉さ」になりがちですが、年数と臨床能力は必ずしも比例しません。\n\n10年間同じルーティンを漫然と繰り返した10年選手より、1年間毎日疑問を持ち仮説検証を繰り返した1年目の方が、圧倒的に臨床推論が深いことも珍しくない。\n\n常に初心を忘れず、学び続ける謙虚さを持ち続けたいものです。\n\n#経験年数 #学び続ける姿勢 #初心 #理学療法士"
-  },
-  {
-    "Day": "Day 58",
-    "CategoryShort": "PTのキャリア・未来",
-    "Content": "PTのスキルを「地域社会」に還元する試み。\n\n公民館でのシニア向け転倒予防体操や、地元スポーツ少年団のメディカルチェック。\n\n病院の中では当たり前すぎる知識が、地域の一歩外に出るだけで「先生、教えてくれてありがとう！」と涙を流して感謝される。\n\n地域の健康を支えるヒーローは、あなたのすぐ足元にいます。\n\n#地域リハ #転倒予防 #スポーツリハ #理学療法士の社会貢献"
-  },
-  {
-    "Day": "Day 59",
-    "CategoryShort": "PTのキャリア・未来",
-    "Content": "「理学療法士の仕事が好きか？」と聞かれたら、僕は迷わず「大好きだ」と答えます。\n\n人の身体の神秘に触れ、歩けなかった人が立ち上がり、絶望していた人の顔に笑顔が戻る。こんなにも人間味に溢れた尊い職業は滅多にありません。\n\nだからこそ、過重労働や旧態依然の体質でこの仕事を嫌いになってしまう人を一人でも減らしたい。\n\n#天職 #理学療法士の誇り #医療への情熱 #現場改革"
-  },
-  {
-    "Day": "Day 60",
-    "CategoryShort": "PTのキャリア・未来",
-    "Content": "キャリアに迷った時は、「10年後の自分が今の自分を振り返った時、どちらを選んだら後悔しないか？」を基準にしてみる。\n\n安定したぬるま湯に浸かり続けるのか、リスクを取って新しい挑戦に飛び込むのか。\n\n後悔のない選択なんてないけれど、「自分で選んだ後悔」ならいくらでも成長の糧にできます。\n\n#決断力 #キャリアの分岐点 #後悔のない人生 #理学療法士"
-  },
-  {
-    "Day": "Day 61",
-    "CategoryShort": "臨床思考・リハビリのリアル",
-    "Content": "歩行分析で何を見ていいか迷った時は、足元を見るのをやめて「みぞおち（重心）の上下左右の揺れ」だけを10秒間ぼーっと眺めてみてください。\n\n部分（足関節や膝）に囚われると全体のメカニズムを見失います。\n\n重心がどこで滞り、どこで急激に落下しているのか。全体から部分へ降りていく視点を持つだけで、歩行の真因が一気に浮かび上がってきます。\n\n#歩行分析 #動作分析 #理学療法評価 #臨床のコツ"
-  },
-  {
-    "Day": "Day 62",
-    "CategoryShort": "臨床思考・リハビリのリアル",
-    "Content": "「筋力が低下しているから歩けない」\n\n若手セラピストが一番陥りやすい短絡的な結論です。\n\nでも本当に筋力不足だけでしょうか？アライメントの崩れによる筋出力の抑制、感覚フィードバックの遅れ、痛みを恐れる代償動作…。\n\n「なぜその筋が出力できない環境にあるのか」まで掘り下げることが、理学療法の本当の深さです。\n\n#臨床推論 #仮説検証 #筋力低下の罠 #理学療法士"
-  },
-  {
-    "Day": "Day 63",
-    "CategoryShort": "臨床思考・リハビリのリアル",
-    "Content": "【ピンピンコロリ（PPK）の科学】\n\n「最期の直前まで元気に過ごしたい」は誰もが願うことですが、リハビリテーション医学的に見れば健康寿命と平均寿命の間には約10年の要介護期間があります。\n\nこの10年をいかに縮めるか。その鍵は70代の「微細な歩行速度の低下」と「筋量減少（サルコペニア）」をいかに早期に拾い上げて介入できるかにかかっています。\n\n#健康寿命 #ピンピンコロリ #サルコペニア #予防リハ"
-  },
-  {
-    "Day": "Day 64",
-    "CategoryShort": "臨床思考・リハビリのリアル",
-    "Content": "ROM（関節可動域）テストで「何度曲がったか」という角度の数字だけに一喜一憂していませんか？\n\n臨床で本当に重要なのは、数字そのものよりも「最終域でどんな抵抗感（エンドフィール）があるか」「患者さんがどの瞬間に身構えるか」。\n\n数値の奥にある組織の声や患者さんの無意識のサインに耳を澄ませる手が、熟練PTの手です。\n\n#エンドフィール #触診 #ROM測定 #理学療法手技"
-  },
-  {
-    "Day": "Day 65",
-    "CategoryShort": "臨床思考・リハビリのリアル",
-    "Content": "エビデンス（EBP：根拠に基づく医療）は絶対に大切です。\n\nでも、論文に書かれた平均値が、目の前で痛みに顔を歪めているこの患者さんにそのまま当てはまるとは限らない。\n\n最新の論文データ（エビデンス）と、セラピストの臨床経験、そして何より患者さん自身の人生の価値観。この3つを統合して初めて、本当の『テーラーメイドなリハビリ』が完成します。\n\n#EBP #根拠に基づく医療 #ナラティブ #理学療法"
-  },
-  {
-    "Day": "Day 66",
-    "CategoryShort": "臨床思考・リハビリのリアル",
-    "Content": "脳卒中片麻痺の患者さんの立ち上がり練習。\n\n麻痺側の足を引かせて「ほら、こっちに体重乗せて！」と力づくで立ち上がらせていませんか？\n\n足に体重が乗らないのは「乗せたくない」のではなく、「床からの反力を骨盤まで綺麗に受け取るアライメント」が整っていないから。\n\n力で誘導するのではなく、重力を味方にできるポジションを整えてあげるのがプロの介助です。\n\n#片麻痺 #立ち上がり動作 #バイオメカニクス #リハビリ技術"
-  },
-  {
-    "Day": "Day 67",
-    "CategoryShort": "臨床思考・リハビリのリアル",
-    "Content": "リハビリ室でどんなに綺麗な平行棒内歩行ができても、病棟や自宅に戻ったらベッドから一歩も動けない。\n\nこの「できるADL」と「しているADL」の乖離を埋められない理学療法士は、半分しか仕事をしていないと言われても仕方ありません。\n\nリハビリ室の主役はセラピストかもしれませんが、生活の主役は患者さん自身です。生活環境にどう落とし込むかが腕の見せ所。\n\n#できるADL #生活リハビリ #病棟連携 #作業療法"
-  },
-  {
-    "Day": "Day 68",
-    "CategoryShort": "臨床思考・リハビリのリアル",
-    "Content": "疼痛治療において「痛い場所」ばかり揉んでいませんか？\n\n腰痛の原因が反対側の股関節の伸展制限にあったり、膝の痛みの引き金が足部の回内アーチ低下にあったりする。\n\n痛んでいる部位は「被害者」であって、本当の「犯人」は離れた場所でサボっている関節や筋肉であることがほとんどです。全身の運動連鎖を見渡す目が求められます。\n\n#疼痛治療 #運動連鎖 #運動器リハ #理学療法"
-  },
-  {
-    "Day": "Day 69",
-    "CategoryShort": "臨床思考・リハビリのリアル",
-    "Content": "評価（アセスメント）と治療を完全に切り離して考えている新人が多い。\n\n「午前中に評価バッテリーを全部取って、明日から治療を考えます」ではなく、1回触れること自体が評価であり、1回動かすこと自体が治療への仮説検証です。\n\n触れた瞬間の筋緊張の変化を感じ取り、その場で即座に仮説を修正していく。臨床は常にリアルタイムな対話です。\n\n#臨床のリアル #アセスメント #仮説検証ループ #PTの技"
-  },
-  {
-    "Day": "Day 70",
-    "CategoryShort": "臨床思考・リハビリのリアル",
-    "Content": "高齢患者さんのリハビリで最も注意すべき「低栄養（サルコペニア・カヘキシア）」。\n\n栄養が枯渇している状態でいくらリハビリ室で筋トレをさせても、筋肉がつかないどころか自食作用で筋肉が削れていくだけです。\n\n管理栄養士と密に連携し、「今この患者さんは攻める時期か、守る時期か」をチームで見極めるリハビリテーション栄養の視点が欠かせません。\n\n#リハビリテーション栄養 #低栄養 #多職種連携 #チーム医療"
-  },
-  {
-    "Day": "Day 71",
-    "CategoryShort": "臨床思考・リハビリのリアル",
-    "Content": "徒手療法（ハンドリング）で患者さんの身体を誘導する時、自分の指先に余計な力が入っていませんか？\n\nセラピストの手が緊張していると、患者さんの筋緊張も反射的に跳ね上がります。\n\n「水の上に手を浮かべるように」触れる。こちら側の脱力こそが、患者さんの無駄な筋緊張を解きほぐす最大の鍵です。\n\n#ハンドリング #触診技術 #脱力 #徒手療法"
-  },
-  {
-    "Day": "Day 72",
-    "CategoryShort": "臨床思考・リハビリのリアル",
-    "Content": "パーキンソン病の患者さんの「すくみ足」。\n\n「足を前に出して！」といくら声をかけても足は床に張り付いたまま。\n\nでも、床にテープを一本貼ったり、「1・2・1・2」とメトロノームのリズムを聴かせたりするだけで、驚くほどスイスイ歩き出すことがあります。\n\n脳の別の回路（視覚刺激・聴覚刺激）を迂回させて運動を引き出す。神経機構を理解する面白さがここにあります。\n\n#パーキンソン病 #すくみ足 #神経難病 #外部キュー"
-  },
-  {
-    "Day": "Day 73",
-    "CategoryShort": "臨床思考・リハビリのリアル",
-    "Content": "心臓リハビリテーションや呼吸リハビリテーション。\n\n運動負荷をかける際、バイタルサインの数値（血圧・心拍数・SpO2）だけでなく、患者さんの「顔色」「呼吸パターン」「冷や汗の有無」を五感で観察する。\n\nモニターの波形を見る前に、まず患者さんの顔を見る。臨床の基本はいつの時代も変わりません。\n\n#内部障害 #心臓リハビリ #呼吸リハビリ #危機管理"
-  },
-  {
-    "Day": "Day 74",
-    "CategoryShort": "臨床思考・リハビリのリアル",
-    "Content": "「理学療法士の手は、あたたかい」\n\n患者さんからそう言われた時、ハッとしたことがあります。\n\n技術や知識はもちろん大切。でも、冷たい手で機械的に触られるリハビリと、温かい手で慈しむように触られるリハビリ、どちらが患者さんの治癒力を引き出すかは明白です。\n\n手当てという言葉の原点を忘れずにいたい。\n\n#手当て #理学療法の原点 #温もり #信頼関係"
-  },
-  {
-    "Day": "Day 75",
-    "CategoryShort": "臨床思考・リハビリのリアル",
-    "Content": "装具療法（AFOなど）を「重度麻痺の諦め」だと勘違いしている人がまだいます。\n\n適切にアライメントを補正する短下肢装具は、諦めではなく「早期から質の高い感覚入力を脳に送り届けるための最強の治療ツール」です。\n\n早期に立ち、早期に歩行リズムを体験させること。装具を使いこなす技術はPTの必須スキルです。\n\n#装具療法 #脳卒中リハビリ #短下肢装具 #早期離床"
-  },
-  {
-    "Day": "Day 76",
-    "CategoryShort": "臨床思考・リハビリのリアル",
-    "Content": "骨関節術後のリハビリで、プロトコール（標準治療手順）通りに進めることだけに固執していませんか？\n\nプロトコールはあくまで安全管理のためのガイドライン。\n\n骨癒合の進み具合、年齢、組織の柔軟性、生活背景によって負荷の上げ下げは微調整されるべきです。「人を診ずしてプロトコールを診る」愚を犯してはならない。\n\n#整形外科リハ #術後リハ #クリニカルパス #個別性"
-  },
-  {
-    "Day": "Day 77",
-    "CategoryShort": "臨床思考・リハビリのリアル",
-    "Content": "患者さんが「リハビリに行きたくない」と拒否された時。\n\n「わがままだ」「意欲が低い」と片付けるのは簡単です。\n\nでも、そこには「昨日無理やり歩かされて怖かった」「担当のセラピストに話を遮られた」という悲鳴が隠されていることが多い。\n\n拒否は患者さんからの最も切実なメッセージです。まず自分のアプローチを振り返る勇気を。\n\n#リハビリ拒否 #患者理解 #ラポール #臨床倫理"
-  },
-  {
-    "Day": "Day 78",
-    "CategoryShort": "臨床思考・リハビリのリアル",
-    "Content": "理学療法のゴール設定。\n\n「歩行自立」「階段昇降可能」という機能的目標だけで終わっていませんか？\n\n患者さんが本当に望んでいるのは、歩くことそのものではなく「歩いて近所のスーパーに自分で夕飯の買い出しに行きたい」「孫の結婚式に自分の足で参列したい」という生活目標です。\n\n患者さんの物語に寄り添うゴール設定こそが、最大のリハビリモチベーションを生み出します。\n\n#目標設定 #ナラティブアプローチ #生活機能 #理学療法士"
-  },
-  {
-    "Day": "Day 79",
-    "CategoryShort": "臨床思考・リハビリのリアル",
-    "Content": "リハビリの効果判定で「なんとなく良くなった気がします」という主観で終わらせない。\n\n10m歩行時間、Timed Up & Go（TUG）、6分間歩行距離、FIM…。\n\n妥当性の高いアウトカム指標を用いて、介入前後の変化を数値として客観的に記録・提示する。それが患者さんの自信になり、医師や他職種との共通言語になります。\n\n#アウトカム #客観的評価 #効果判定 #エビデンス"
-  },
-  {
-    "Day": "Day 80",
-    "CategoryShort": "臨床思考・リハビリのリアル",
-    "Content": "臨床で20年やってきて思うのは、「患者さんが一番の先生である」という真理。\n\n教科書通りの経過をたどる患者さんなんて一人もいません。\n\n自分のちっぽけな知識の枠組みをことごとく打ち破ってくれる患者さんとの出会いこそが、セラピストを謙虚にさせ、生涯にわたる探究心を掻き立ててくれます。\n\n#臨床の師 #生涯学習 #謙虚 #理学療法道"
-  },
-  {
-    "Day": "Day 81",
-    "CategoryShort": "教員室のつぶやき・マインド",
-    "Content": "国家試験の前日夕方、ガランとした教員室。\n\n机の上に並ぶ学生たちの願書控えと、使い古された過去問題集の山。\n\n「明日、あいつらがケアレスミスしませんように」「緊張で頭が真っ白になりませんように」\n\n神頼みなんて普段しない教員たちが、職員室の片隅で手を合わせている。教員という仕事の、一番静かで熱い時間です。\n\n#国家試験前日 #PT国試 #教員の祈り #サクラサケ"
-  },
-  {
-    "Day": "Day 82",
-    "CategoryShort": "教員室のつぶやき・マインド",
-    "Content": "1年次の頃、成績も出席もギリギリで「もう辞めます…」と職員室で泣いていた学生。\n\n教員みんなで何度も面談し、励まし、時には厳しく叱りながら伴走し続けた結果、先日無事に国家試験に合格して笑顔で卒業していきました。\n\n手のかかった子ほど、立派に巣立っていく姿を見た時の涙腺崩壊率は異常です。\n\n#卒業式 #学生の成長 #教員の涙 #養成校物語"
-  },
-  {
-    "Day": "Day 83",
-    "CategoryShort": "教員室のつぶやき・マインド",
-    "Content": "22年間教壇に立ってきて確信した「最終的に伸びる学生」のたった1つの共通点。\n\nそれは「要領の良さ」ではなく、「素直にアドバイスを受け入れて、即座に行動を修正できる柔軟性」です。\n\nプライドが高くて言い訳をする秀才よりも、泥臭く「わかりません！教えてください！」と頭を下げられる不器用な学生の方が、臨床に出てから化けます。\n\n#伸びる人の特徴 #素直さ #臨床教育 #教員の気づき"
-  },
-  {
-    "Day": "Day 84",
-    "CategoryShort": "教員室のつぶやき・マインド",
-    "Content": "教員が学生に「勉強しろ！」と怒鳴る前に、自分自身は最近何か新しいことを学んでいるだろうか？\n\n20年前の講義ノートをそのまま読み上げるだけの教員の言葉が、好奇心旺盛な若者の心に届くはずがありません。\n\n教員自身が何かに挑戦し、試行錯誤し、学ぶ楽しさを体現している姿を見せること。それが最高の講義です。\n\n#教員の資質 #生涯現役 #背中を見せる教育 #探究心"
-  },
-  {
-    "Day": "Day 85",
-    "CategoryShort": "教員室のつぶやき・マインド",
-    "Content": "教員室のコーヒーメーカーの周りで交わされる、同僚教員との他愛のない雑談。\n\n「〇〇君、最近ちょっと顔色暗くない？」「あの科目の試験、ちょっと難しすぎたかな（笑）」\n\nこういう何気ない日常のコミュニケーションの中にこそ、学生の不調を早期発見するヒントや、教育改善のアイデアが詰まっていたりします。\n\n#教員室の日常 #職員室 #雑談のチカラ #チームワーク"
-  },
-  {
-    "Day": "Day 86",
-    "CategoryShort": "教員室のつぶやき・マインド",
-    "Content": "実習先で自信を喪失してしまい、下を向いたまま帰校した学生との面談。\n\n「先生、私にはPTの適性がないみたいです」\n\nそこで「そんなことない！」と安易に否定するのではなく、「そっか、そこまで悔しいと思えるくらい本気で向き合ってきたんだね」と、その悔しさごと抱きとめてあげる。\n\n共感からしか、リスタートのエネルギーは湧いてきません。\n\n#面談の極意 #傾聴 #学生支援 #自己肯定感"
-  },
-  {
-    "Day": "Day 87",
-    "CategoryShort": "教員室のつぶやき・マインド",
-    "Content": "卒業して5年目の教え子が、ふらっと学校に遊びに来てくれた日。\n\n「先生、担当患者さんのリハビリで壁にぶつかって…話聞いてもらえますか？」\n\n一人前の理学療法士として臨床のリアルな悩みを相談しに来てくれる。かつての教え子と、同じ専門職として対等にディスカッションできるこの瞬間が、何よりのご褒美です。\n\n#卒業生の来校 #教え子との再会 #理学療法士の絆 #教育者冥利"
-  },
-  {
-    "Day": "Day 88",
-    "CategoryShort": "教員室のつぶやき・マインド",
-    "Content": "学生のアンケート評価で厳しいコメントをもらって落ち込む夜。\n\n「説明が早口でわかりにくい」「板書が見づらい」\n\n凹みますが、匿名のフィードバックほど自分の盲点を教えてくれる貴重な鏡はありません。\n\n翌週の授業で「先週みんなからアンケートで指摘をもらったから、今日はゆっくり話すよ！」と宣言して改善する。教員も日々成長の途中です。\n\n#授業評価 #フィードバックの力 #改善サイクル #謙虚に学ぶ"
-  },
-  {
-    "Day": "Day 89",
-    "CategoryShort": "教員室のつぶやき・マインド",
-    "Content": "「教える」ということは、「教わる」ことの連続です。\n\n学生たちの鋭い質問に冷や汗をかき、彼らの瑞々しい感性にハッとさせられ、自分の不勉強を痛感させられる。\n\n22年間、学生を育ててきたつもりでいたけれど、本当に育てられていたのは自分の方だったのだと、教壇を降りるたびに感謝の念が湧いてきます。\n\n#教育の本質 #教職の喜び #学生に感謝 #人間的成長"
-  },
-  {
-    "Day": "Day 90",
-    "CategoryShort": "教員室のつぶやき・マインド",
-    "Content": "テストで赤点を取った学生を呼び出して説教する時間より、その子が「なぜ勉強に集中できなかったのか」の背景（バイト、家庭環境、友人関係）に耳を傾ける時間の方が遥かに大切。\n\n表面的な点数だけを見て人を裁かない。\n\n裏側にある物語を想像できる優しさこそが、医療人を育てる教員に必要な最大の資質です。\n\n#教育的配慮 #背景を見る #学生指導 #心の寄り添い"
-  },
-  {
-    "Day": "Day 91",
-    "CategoryShort": "教員室のつぶやき・マインド",
-    "Content": "金曜日の夕方、すべての講義を終えて静まり返った講堂の電気を消す瞬間。\n\nどっと疲労感が押し寄せるけれど、やりきった充実感で胸がいっぱいになる。\n\n今日も誰かの未来の種まきができたかな。明日への活力をチャージして、また月曜日に笑顔で学生たちを迎えよう。\n\n#今週もお疲れ様でした #金曜日の教員室 #達成感 #週末の過ごし方"
-  },
-  {
-    "Day": "Day 92",
-    "CategoryShort": "教員室のつぶやき・マインド",
-    "Content": "学生同士が模擬患者役とセラピスト役に分かれて行う実技試験（OSCE）。\n\n緊張で手がガタガタ震えながらも、患者役の同級生に「お寒くないですか？」と優しく声をかけている姿を見て、採点の手を止めてグッときてしまう。\n\n手技の正確さ以上に、その『思いやり』が合格だよ、と心の中で叫んでいます。\n\n#OSCE #実技試験 #思いやり #理学療法教育"
-  },
-  {
-    "Day": "Day 93",
-    "CategoryShort": "教員室のつぶやき・マインド",
-    "Content": "「失敗したらどうしよう」と縮こまる学生によく言う言葉。\n\n「学校はね、思いっきり失敗するために高い学費を払って来ている場所なんだよ。臨床に出て患者さんの前で失敗する前に、ここで何百回でも失敗しなさい。そのための教員だから」\n\n失敗を許容できるセーフティネットがあるからこそ、人は大きく羽ばたけます。\n\n#失敗は学び #挑戦する勇気 #心理的安全性 #学校の価値"
-  },
-  {
-    "Day": "Day 94",
-    "CategoryShort": "教員室のつぶやき・マインド",
-    "Content": "オープンキャンパスで高校生や保護者の方々に理学療法士の魅力を語る日。\n\n「うちの息子、勉強が苦手なんですが大丈夫でしょうか…」と心配そうなお母様。\n\n「勉強の得意不得意よりも、人の痛みに気づける優しさがあるかが一番大切ですよ」とお答えすると、ホッと胸を撫で下ろされる。原点を再確認できる大切な1日です。\n\n#オープンキャンパス #高校生応援 #PTの魅力 #進路相談"
-  },
-  {
-    "Day": "Day 95",
-    "CategoryShort": "教員室のつぶやき・マインド",
-    "Content": "臨床実習から帰ってきた学生たちが、教員室のドアを開けて「先生、ただいま戻りました！」と一礼する瞬間。\n\n出発前とはまるで別人のように引き締まった表情と、自信に満ちた立ち居振る舞い。\n\n現場の過酷さと温かさに揉まれて一回り逞しくなった姿を見るたび、臨床の指導者の先生方に心から頭が下がります。\n\n#実習帰校 #たくましい背中 #臨床の力 #感謝"
-  },
-  {
-    "Day": "Day 96",
-    "CategoryShort": "教員室のつぶやき・マインド",
-    "Content": "忙しい毎日の中で、ふと立ち止まって「自分は何のために教員をやっているのか」を問い直す。\n\n知識を詰め込むためでも、規律を守らせるためでもない。\n\n彼らが10年後、20年後に患者さんから信頼され、愛される医療人として幸せな人生を歩むための礎を築くため。北極星を見失わずに歩き続けたい。\n\n#教育理念 #ミッション #教員の軸 #北極星"
-  },
-  {
-    "Day": "Day 97",
-    "CategoryShort": "教員室のつぶやき・マインド",
-    "Content": "国家試験対策室に差し入れされた、保護者の方々からのキットカットや温かいメッセージ。\n\n学校は教員だけで運営しているんじゃない。学生を陰で支え続けるご家族の深い愛情があってこそ成り立っている。\n\n全員を絶対に合格させてご家族の元へ送り届けるという重い責任と誇りを胸に刻みます。\n\n#国試応援 #家族の支え #全員合格 #サクラサク"
-  },
-  {
-    "Day": "Day 98",
-    "CategoryShort": "教員室のつぶやき・マインド",
-    "Content": "「先生みたいな理学療法士になりたいです」\n\n卒業文集にそう書いてくれた学生の言葉を、今でも手帳に挟んで大切なお守りにしています。\n\n落ち込んだ時、教育に迷った時、この言葉を開いては「恥じない生き方をしなければ」と背筋を正す。教え子の言葉が、僕の一番のエネルギー源です。\n\n#一生の宝物 #お守りの言葉 #教職の誇り #教え子に感謝"
-  },
-  {
-    "Day": "Day 99",
-    "CategoryShort": "教員室のつぶやき・マインド",
-    "Content": "人間関係に悩んだり、挫折しそうになった時こそ、「ユーモア」を忘れないこと。\n\n教員室がピリピリしていると、学生たちも萎縮してしまいます。\n\nくだらない冗談で笑い合い、失敗を笑い飛ばせる大人の余裕を持つこと。笑顔の溢れる環境からしか、クリエイティブな発想は生まれません。\n\n#ユーモアの力 #笑顔の職場 #職員室の空気 #ポジティブマインド"
-  },
-  {
-    "Day": "Day 100",
-    "CategoryShort": "教員室のつぶやき・マインド",
-    "Content": "理学療法という仕事に出会えて本当によかった。\n教育という仕事に出会えて本当によかった。\n\n22年の歳月を振り返って、心からそう言えることが僕の人生の誇りです。\n\n医療の未来、教育の未来を担う若い世代のために、これからも一歩ずつ、泥臭く、新しい道を切り拓いていきます。\n\n#理学療法士 #医療教育DX #未来へのバトン #感謝と挑戦"
-  }
-];
-
+    // Firebase Config
+    const firebaseConfig = {
+  "apiKey": "AIzaSyBf6SfxGzgJ3uOTGfF3KluZ1f5UuO8sAt8",
+  "authDomain": "inteve-threads.firebaseapp.com",
+  "projectId": "inteve-threads",
+  "storageBucket": "inteve-threads.firebasestorage.app",
+  "messagingSenderId": "66599988885",
+  "appId": "1:66599988885:web:0fd573fca276c05820759c"
+};
+    
+    // Category Color Mapping
     const CAT_CLASSES = {
       '実習・教育の本音': 'cat-edu',
       '医療教育DX・業務効率化': 'cat-dx',
@@ -1271,38 +714,360 @@
       '教員室のつぶやき・マインド': 'cat-mind'
     };
 
-    const STORAGE_KEY = 'threads_pt_edu_completed_v1';
-    let completedSet = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
-    let currentFilter = 'all';
-    let isShuffled = false;
-    let shuffledIndices = [];
-    let currentModalItem = null;
+    let postsData = [];
+    let currentStatusFilter = 'all';
+    let currentModalDocId = null;
+    let db = null;
 
-    function saveCompleted() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(completedSet)));
-      updateProgress();
+    // Initialize Firebase
+    try {
+      if (firebaseConfig.apiKey) {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.firestore();
+        initFirestoreListener();
+      } else {
+        showToast('Firebase 設定が見つかりません');
+      }
+    } catch (e) {
+      console.error('Firebase init error:', e);
+      document.getElementById('syncText').textContent = '同期エラー';
     }
 
-    function toggleComplete(day, event) {
-      if (event) event.stopPropagation();
-      if (completedSet.has(day)) {
-        completedSet.delete(day);
-      } else {
-        completedSet.add(day);
-      }
-      saveCompleted();
+    function initFirestoreListener() {
+      const syncDot = document.getElementById('syncDot');
+      const syncText = document.getElementById('syncText');
+
+      db.collection('posts').onSnapshot((snapshot) => {
+        syncDot.classList.add('connected');
+        syncText.textContent = '同期完了 (リアルタイム)';
+
+        const loaded = [];
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          loaded.push({
+            id: doc.id,
+            ...data
+          });
+        });
+
+        // Sort by dayNumber
+        loaded.sort((a, b) => (a.dayNumber || 0) - (b.dayNumber || 0));
+        postsData = loaded;
+
+        updateCountsAndProgress();
+        renderPosts();
+
+        // If modal is open, refresh modal view
+        if (currentModalDocId) {
+          const item = postsData.find(p => p.id === currentModalDocId);
+          if (item) populateModal(item);
+        }
+      }, (error) => {
+        console.error('Firestore listener error:', error);
+        syncDot.classList.remove('connected');
+        syncText.textContent = '同期切断';
+      });
+    }
+
+    function updateCountsAndProgress() {
+      let stock = 0, scheduled = 0, published = 0;
+      postsData.forEach(p => {
+        const st = p.status || 'stock';
+        if (st === 'published') published++;
+        else if (st === 'scheduled') scheduled++;
+        else stock++;
+      });
+
+      document.getElementById('countAll').textContent = postsData.length;
+      document.getElementById('countStock').textContent = stock;
+      document.getElementById('countScheduled').textContent = scheduled;
+      document.getElementById('countPublished').textContent = published;
+
+      const total = postsData.length || 100;
+      const pct = Math.round((published / total) * 100);
+      document.getElementById('progressText').textContent = `${published} / ${total} 完了 (${pct}%)`;
+      document.getElementById('progressBar').style.width = `${pct}%`;
+    }
+
+    function setStatusFilter(status) {
+      currentStatusFilter = status;
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === status);
+      });
       renderPosts();
     }
 
-    function handleCardClick(day) {
-      const item = POSTS_DATA.find(p => p.Day === day);
+    function renderPosts() {
+      const container = document.getElementById('postsContainer');
+      const searchWord = document.getElementById('searchInput').value.trim().toLowerCase();
+      const selectedCat = document.getElementById('catFilter').value;
+
+      const filtered = postsData.filter(p => {
+        const st = p.status || 'stock';
+        if (currentStatusFilter !== 'all' && st !== currentStatusFilter) return false;
+        if (selectedCat !== 'all' && p.category !== selectedCat) return false;
+        if (searchWord) {
+          const text = (p.day + ' ' + p.category + ' ' + (p.content || '')).toLowerCase();
+          if (!text.includes(searchWord)) return false;
+        }
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div style="text-align: center; padding: 40px; color: #94a3b8; grid-column: 1/-1;">該当する投稿はありません</div>';
+        return;
+      }
+
+      container.innerHTML = filtered.map(item => {
+        const catClass = CAT_CLASSES[item.category] || 'cat-edu';
+        const st = item.status || 'stock';
+        const isPublished = st === 'published';
+        const isScheduled = st === 'scheduled';
+
+        let statusBadgeHtml = '<span class="status-badge badge-stock">📝 ストック</span>';
+        if (isPublished) {
+          statusBadgeHtml = '<span class="status-badge badge-published">✅ 投稿済み</span>';
+        } else if (isScheduled) {
+          const timeStr = item.scheduledAt ? formatDateTime(item.scheduledAt) : '日時未設定';
+          statusBadgeHtml = `<span class="status-badge badge-scheduled">📅 予約: ${timeStr}</span>`;
+        }
+
+        // Insights HTML
+        let insightsHtml = '';
+        if (isPublished && item.insights && (item.insights.views || item.insights.likes)) {
+          insightsHtml = `
+            <div class="insights-row">
+              <span class="insight-item">👁️ ${item.insights.views || 0}</span>
+              <span class="insight-item">❤️ ${item.insights.likes || 0}</span>
+              <span class="insight-item">💬 ${item.insights.replies || 0}</span>
+              <span class="insight-item">🔁 ${item.insights.reposts || 0}</span>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="post-card status-${st}" id="card-${item.id}">
+            <div class="post-card-top">
+              <div class="post-badges">
+                <span class="day-badge">${item.day}</span>
+                <span class="cat-badge ${catClass}">${item.category}</span>
+              </div>
+              <div>${statusBadgeHtml}</div>
+            </div>
+
+            <div class="post-body" onclick="openModal('${item.id}')">${escapeHtml(item.content)}</div>
+
+            ${insightsHtml}
+
+            <div class="card-footer">
+              <label class="check-toggle">
+                <input type="checkbox" ${isPublished ? 'checked' : ''} onchange="togglePublish('${item.id}', this.checked)">
+                <span>${isPublished ? '投稿完了' : '投稿済みにする'}</span>
+              </label>
+
+              <button class="edit-btn" onclick="openModal('${item.id}')">
+                ✏️ 編集・予約
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function formatDateTime(isoStr) {
+      if (!isoStr) return '';
+      const d = new Date(isoStr);
+      const m = d.getMonth() + 1;
+      const day = d.getDate();
+      const h = String(d.getHours()).padStart(2, '0');
+      const min = String(d.getMinutes()).padStart(2, '0');
+      return `${m}/${day} ${h}:${min}`;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+    }
+
+    // Modal Operations
+    function openModal(docId) {
+      currentModalDocId = docId;
+      const item = postsData.find(p => p.id === docId);
       if (!item) return;
-      copyToClipboard(item.Content);
+
+      populateModal(item);
+      document.getElementById('modalOverlay').classList.add('active');
+    }
+
+    function populateModal(item) {
+      document.getElementById('modalDayBadge').textContent = item.day;
+      const catBadge = document.getElementById('modalCatBadge');
+      catBadge.textContent = item.category;
+      catBadge.className = `cat-badge ${CAT_CLASSES[item.category] || 'cat-edu'}`;
+
+      const st = item.status || 'stock';
+      const stBadge = document.getElementById('modalStatusBadge');
+      if (st === 'published') {
+        stBadge.className = 'status-badge badge-published';
+        stBadge.textContent = '✅ 投稿済み';
+      } else if (st === 'scheduled') {
+        stBadge.className = 'status-badge badge-scheduled';
+        stBadge.textContent = '📅 予約中';
+      } else {
+        stBadge.className = 'status-badge badge-stock';
+        stBadge.textContent = '📝 ストック';
+      }
+
+      // Textarea
+      const textarea = document.getElementById('modalEditTextarea');
+      textarea.value = item.content || '';
+      updateModalCharCount();
+
+      // Schedule Input
+      const scheduleInput = document.getElementById('modalScheduleInput');
+      const clearBtn = document.getElementById('modalClearScheduleBtn');
+      if (item.scheduledAt) {
+        // Format ISO to YYYY-MM-DDTHH:MM for datetime-local
+        const d = new Date(item.scheduledAt);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const hh = String(d.getHours()).padStart(2, '0');
+        const min = String(d.getMinutes()).padStart(2, '0');
+        scheduleInput.value = `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+        clearBtn.style.display = 'inline-block';
+      } else {
+        scheduleInput.value = '';
+        clearBtn.style.display = 'none';
+      }
+
+      // Intent link
+      const encoded = encodeURIComponent(item.content || '');
+      document.getElementById('modalThreadsIntentBtn').href = `https://www.threads.net/intent/post?text=${encoded}`;
+
+      // Toggle publish button text
+      const toggleBtn = document.getElementById('modalTogglePublishBtn');
+      toggleBtn.textContent = (st === 'published') ? '↩️ 未投稿に戻す' : '✅ 投稿済みにする';
+
+      // Insights box
+      const insightsBox = document.getElementById('modalInsightsBox');
+      const insightsDetail = document.getElementById('modalInsightsDetail');
+      if (st === 'published' && item.insights && (item.insights.views || item.insights.likes)) {
+        insightsBox.style.display = 'block';
+        insightsDetail.innerHTML = `
+          <span>👁️ 閲覧数: <strong>${item.insights.views || 0}</strong></span>
+          <span>❤️ いいね: <strong>${item.insights.likes || 0}</strong></span>
+          <span>💬 返信: <strong>${item.insights.replies || 0}</strong></span>
+          <span>🔁 再投稿: <strong>${item.insights.reposts || 0}</strong></span>
+        `;
+      } else {
+        insightsBox.style.display = 'none';
+      }
+    }
+
+    function closeModal(e) {
+      if (e.target.id === 'modalOverlay') closeModalDirect();
+    }
+
+    function closeModalDirect() {
+      document.getElementById('modalOverlay').classList.remove('active');
+      currentModalDocId = null;
+    }
+
+    function updateModalCharCount() {
+      const len = document.getElementById('modalEditTextarea').value.length;
+      document.getElementById('modalCharCount').textContent = `${len} 文字 (Threads上限: 500文字)`;
+    }
+
+    function copyModalText() {
+      const text = document.getElementById('modalEditTextarea').value;
+      copyToClipboard(text);
+    }
+
+    function saveContentEdit() {
+      if (!currentModalDocId || !db) return;
+      const text = document.getElementById('modalEditTextarea').value;
+
+      db.collection('posts').doc(currentModalDocId).update({
+        content: text
+      }).then(() => {
+        showToast('変更内容をクラウドに保存しました！');
+      }).catch(err => {
+        alert('保存に失敗しました: ' + err.message);
+      });
+    }
+
+    function saveScheduleTime() {
+      if (!currentModalDocId || !db) return;
+      const val = document.getElementById('modalScheduleInput').value;
+      if (!val) {
+        alert('予約日時を選択してください');
+        return;
+      }
+
+      // convert to ISO string
+      const isoStr = new Date(val).toISOString();
+
+      db.collection('posts').doc(currentModalDocId).update({
+        scheduledAt: isoStr,
+        status: 'scheduled'
+      }).then(() => {
+        showToast('予約日時を設定しました 📅');
+        closeModalDirect();
+      }).catch(err => {
+        alert('予約設定に失敗しました: ' + err.message);
+      });
+    }
+
+    function clearScheduleTime() {
+      if (!currentModalDocId || !db) return;
+      db.collection('posts').doc(currentModalDocId).update({
+        scheduledAt: null,
+        status: 'stock'
+      }).then(() => {
+        showToast('予約を解除しストックに戻しました');
+      }).catch(err => {
+        alert('解除に失敗しました: ' + err.message);
+      });
+    }
+
+    function togglePublish(docId, isPublished) {
+      if (!db) return;
+      const newStatus = isPublished ? 'published' : 'stock';
+      const updateObj = { status: newStatus };
+      if (isPublished) {
+        updateObj.publishedAt = new Date().toISOString();
+      }
+
+      db.collection('posts').doc(docId).update(updateObj).then(() => {
+        showToast(isPublished ? '投稿済みに更新しました ✅' : '未投稿に戻しました');
+      }).catch(err => {
+        alert('更新に失敗しました: ' + err.message);
+      });
+    }
+
+    function togglePublishFromModal() {
+      if (!currentModalDocId) return;
+      const item = postsData.find(p => p.id === currentModalDocId);
+      if (!item) return;
+      const willPublish = (item.status !== 'published');
+      togglePublish(currentModalDocId, willPublish);
+    }
+
+    function openRandomPicker() {
+      const unposted = postsData.filter(p => (p.status || 'stock') !== 'published');
+      const pool = unposted.length > 0 ? unposted : postsData;
+      if (pool.length === 0) return;
+      const picked = pool[Math.floor(Math.random() * pool.length)];
+      openModal(picked.id);
     }
 
     function copyToClipboard(text) {
       navigator.clipboard.writeText(text).then(() => {
-        showToast('本文をコピーしました！Threadsに貼り付けて投稿できます');
+        showToast('本文をコピーしました！Threadsに貼り付けられます');
       }).catch(() => {
         const textarea = document.createElement('textarea');
         textarea.value = text;
@@ -1328,177 +1093,8 @@
       if (toastTimer) clearTimeout(toastTimer);
       toastTimer = setTimeout(() => {
         toast.classList.remove('show');
-      }, 2200);
+      }, 2400);
     }
-
-    function setFilter(filter) {
-      currentFilter = filter;
-      document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.filter === filter);
-      });
-      renderPosts();
-    }
-
-    function toggleShuffle() {
-      isShuffled = !isShuffled;
-      const btn = document.getElementById('shuffleToggleBtn');
-      const text = document.getElementById('shuffleStateText');
-      if (isShuffled) {
-        btn.classList.add('active');
-        text.textContent = 'ON';
-        // Fisher-Yates shuffle
-        shuffledIndices = POSTS_DATA.map((_, i) => i);
-        for (let i = shuffledIndices.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [shuffledIndices[i], shuffledIndices[j]] = [shuffledIndices[j], shuffledIndices[i]];
-        }
-        showToast('投稿をランダム順に並び替えました 🔀');
-      } else {
-        btn.classList.remove('active');
-        text.textContent = 'OFF';
-        showToast('通常の並び順に戻しました');
-      }
-      renderPosts();
-    }
-
-    function openRandomPicker() {
-      const unposted = POSTS_DATA.filter(p => !completedSet.has(p.Day));
-      const pool = unposted.length > 0 ? unposted : POSTS_DATA;
-      const picked = pool[Math.floor(Math.random() * pool.length)];
-      showModalFor(picked);
-    }
-
-    function rerollRandom() {
-      const unposted = POSTS_DATA.filter(p => !completedSet.has(p.Day) && p.Day !== (currentModalItem ? currentModalItem.Day : ''));
-      const pool = unposted.length > 0 ? unposted : POSTS_DATA;
-      const picked = pool[Math.floor(Math.random() * pool.length)];
-      showModalFor(picked);
-    }
-
-    function showModalFor(item) {
-      currentModalItem = item;
-      const catClass = CAT_CLASSES[item.CategoryShort] || 'cat-edu';
-      const badge = document.getElementById('modalMetaBadge');
-      badge.textContent = `${item.Day} ｜ ${item.CategoryShort}`;
-      badge.className = `cat-badge ${catClass}`;
-      
-      document.getElementById('modalContent').textContent = item.Content;
-
-      const encodedText = encodeURIComponent(item.Content);
-      document.getElementById('modalThreadsBtn').href = `https://www.threads.net/intent/post?text=${encodedText}`;
-
-      document.getElementById('modalOverlay').classList.add('active');
-    }
-
-    function closeModal(e) {
-      if (e.target.id === 'modalOverlay') {
-        closeModalDirect();
-      }
-    }
-
-    function closeModalDirect() {
-      document.getElementById('modalOverlay').classList.remove('active');
-    }
-
-    function copyModalContent() {
-      if (!currentModalItem) return;
-      copyToClipboard(currentModalItem.Content);
-    }
-
-    function updateProgress() {
-      const total = POSTS_DATA.length;
-      const completed = completedSet.size;
-      const pct = Math.round((completed / total) * 100);
-      
-      document.getElementById('progressText').textContent = `${completed} / ${total} 完了 (${pct}%)`;
-      document.getElementById('progressBar').style.width = `${pct}%`;
-
-      const unpostedCount = total - completed;
-      document.querySelector('[data-filter="all"]').textContent = `すべて (${total})`;
-      document.querySelector('[data-filter="unposted"]').textContent = `未投稿 (${unpostedCount})`;
-      document.querySelector('[data-filter="posted"]').textContent = `完了 (${completed})`;
-    }
-
-    function renderPosts() {
-      const container = document.getElementById('postsContainer');
-      const catFilter = document.getElementById('catFilter').value;
-      const searchKeyword = (document.getElementById('searchInput').value || '').trim().toLowerCase();
-
-      let items = isShuffled 
-        ? shuffledIndices.map(idx => POSTS_DATA[idx])
-        : [...POSTS_DATA];
-
-      const filtered = items.filter(item => {
-        const isCompleted = completedSet.has(item.Day);
-        if (currentFilter === 'unposted' && isCompleted) return false;
-        if (currentFilter === 'posted' && !isCompleted) return false;
-        if (catFilter !== 'all' && item.CategoryShort !== catFilter) return false;
-        if (searchKeyword && !item.Content.toLowerCase().includes(searchKeyword) && !item.CategoryShort.toLowerCase().includes(searchKeyword)) {
-          return false;
-        }
-        return true;
-      });
-
-      if (filtered.length === 0) {
-        container.innerHTML = '<div class="empty-state">該当する投稿がありません 🩺</div>';
-        return;
-      }
-
-      container.innerHTML = filtered.map(item => {
-        const isCompleted = completedSet.has(item.Day);
-        const catClass = CAT_CLASSES[item.CategoryShort] || 'cat-edu';
-        const charCount = item.Content.length;
-        const encodedText = encodeURIComponent(item.Content);
-        const threadsIntentUrl = `https://www.threads.net/intent/post?text=${encodedText}`;
-
-        return `
-          <article class="post-card ${isCompleted ? 'completed' : ''}" onclick="handleCardClick('${item.Day}')">
-            <div class="card-header">
-              <div class="card-meta-left">
-                <span class="day-badge">${item.Day}</span>
-                <span class="cat-badge ${catClass}">${item.CategoryShort}</span>
-                <span class="char-count">${charCount}文字</span>
-              </div>
-              <label class="check-wrapper" onclick="event.stopPropagation()">
-                <input type="checkbox" class="check-input" ${isCompleted ? 'checked' : ''} onchange="toggleComplete('${item.Day}', event)">
-                <span class="check-label">${isCompleted ? '投稿済み ✓' : '未投稿'}</span>
-              </label>
-            </div>
-
-            <div class="card-content">${escapeHtml(item.Content)}</div>
-
-            <div class="card-footer">
-              <span class="copy-hint">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                </svg>
-                タップでコピー
-              </span>
-
-              <a href="${threadsIntentUrl}" target="_blank" rel="noopener noreferrer" class="direct-threads-btn" onclick="event.stopPropagation()">
-                <svg viewBox="0 0 192 192">
-                  <path d="M141.537 88.9883C140.71 88.5919 139.87 88.2104 139.019 87.8451C137.537 60.5382 122.616 44.905 97.5619 44.745C97.4484 44.7443 97.3355 44.7443 97.222 44.7443C82.2364 44.7443 69.7731 51.1409 62.102 62.7807L75.6026 72.8105C80.8936 64.7818 89.2618 61.2721 97.222 61.2721C110.155 61.2721 118.892 70.0769 119.988 88.4239C112.984 87.5606 105.474 87.4913 97.5619 88.2238C69.3789 90.8354 53.6483 105.748 53.9483 125.795C54.2383 145.185 69.9572 159.256 90.3541 159.256C104.996 159.256 116.368 152.483 122.951 140.065C127.356 148.657 134.793 154.512 144.383 156.974C148.243 157.965 152.378 158.461 156.685 158.461C164.795 158.461 172.484 156.386 179.373 152.277L171.745 137.818C166.861 140.73 161.439 142.193 155.673 142.193C148.718 142.193 143.766 139.73 141.229 135.006C138.868 130.609 137.95 124.364 138.358 116.142C146.435 111.458 152.614 104.797 156.402 96.6579C160.708 87.4055 161.859 76.5161 159.732 65.0934C156.887 49.8118 147.269 37.6046 133.09 31.0666C121.285 25.6231 107.502 22.7557 92.115 22.7557C76.728 22.7557 62.9452 25.6231 51.1402 31.0666C36.9612 37.6046 27.3432 49.8118 24.4982 65.0934C22.2592 77.1205 23.6302 89.0494 28.4872 99.6644C33.6262 110.895 42.0622 119.897 52.8802 125.704L61.0262 110.518C53.3852 106.417 47.4272 100.063 43.7992 92.1274C40.3542 84.5975 39.3812 76.1368 40.9712 67.6022C43.0032 56.6811 49.8732 47.9621 60.0002 43.2925C69.3732 38.9701 80.3162 36.6897 92.5402 36.6897C104.764 36.6897 115.707 38.9701 125.08 43.2925C135.207 47.9621 142.077 56.6811 144.109 67.6022C145.625 75.7486 144.808 83.5186 141.745 90.0963C139.757 94.3643 136.671 97.9048 132.748 100.618C132.84 96.6579 132.616 92.7451 132.076 88.9328C135.26 90.3194 138.435 91.8016 141.537 93.3645V88.9883ZM91.4332 143.084C78.4332 143.084 69.9572 134.57 69.7572 122.955C69.5372 110.174 79.5292 103.585 97.9372 101.884C104.811 101.248 111.391 101.554 117.485 102.732C115.176 130.655 104.144 143.084 91.4332 143.084Z"/>
-                </svg>
-                Threadsで投稿
-              </a>
-            </div>
-          </article>
-        `;
-      }).join('');
-    }
-
-    function escapeHtml(str) {
-      return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    }
-
-    updateProgress();
-    renderPosts();
   </script>
 </body>
 </html>
