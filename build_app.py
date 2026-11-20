@@ -745,6 +745,9 @@ def generate_app():
           <a id="modalLinkedInIntentBtn" href="#" target="_blank" rel="noopener noreferrer" class="btn" style="background: #0a66c2; color: #fff; border-color: #0a66c2;">
             💼 LinkedInで投稿<span id="modalLinkedInRecBadge" class="rec-badge" style="display: none;">推奨</span>
           </a>
+          <a id="modalXIntentBtn" href="#" target="_blank" rel="noopener noreferrer" class="btn" style="background: #111827; color: #fff; border-color: #111827;">
+            𝕏 Xで投稿<span id="modalXRecBadge" class="rec-badge" style="display: none;">推奨</span>
+          </a>
         </div>
         <div style="display: flex; gap: 6px; flex-wrap: wrap;">
           <button id="modalTogglePublishBtn" class="btn" onclick="togglePublishFromModal()">
@@ -818,12 +821,12 @@ def generate_app():
     }};
 
     const RECOMMENDED_BY_CATEGORY = {{
-      '実習・教育の本音': 'threads',
-      '臨床思考・リハビリのリアル': 'threads',
-      '教員室のつぶやき・マインド': 'threads',
-      '医療教育DX・業務効率化': 'both',
-      'PTのキャリア・未来': 'both',
-      '学校経営・教育ガバナンスDX': 'linkedin'
+      '実習・教育の本音': ['threads', 'x'],
+      '臨床思考・リハビリのリアル': ['threads', 'x'],
+      '教員室のつぶやき・マインド': ['threads', 'x'],
+      '医療教育DX・業務効率化': ['threads', 'linkedin', 'x'],
+      'PTのキャリア・未来': ['threads', 'linkedin', 'x'],
+      '学校経営・教育ガバナンスDX': ['linkedin']
     }};
 
     let postsData = [];
@@ -1059,9 +1062,10 @@ def generate_app():
 
       // Platform Select & Recommended Badges
       document.getElementById('modalPlatformSelect').value = item.platforms || 'threads';
-      const rec = RECOMMENDED_BY_CATEGORY[item.category] || item.platforms || 'threads';
-      document.getElementById('modalThreadsRecBadge').style.display = (rec === 'threads' || rec === 'both') ? 'inline-block' : 'none';
-      document.getElementById('modalLinkedInRecBadge').style.display = (rec === 'linkedin' || rec === 'both') ? 'inline-block' : 'none';
+      const recList = RECOMMENDED_BY_CATEGORY[item.category] || [item.platforms || 'threads'];
+      document.getElementById('modalThreadsRecBadge').style.display = recList.includes('threads') ? 'inline-block' : 'none';
+      document.getElementById('modalLinkedInRecBadge').style.display = recList.includes('linkedin') ? 'inline-block' : 'none';
+      document.getElementById('modalXRecBadge').style.display = recList.includes('x') ? 'inline-block' : 'none';
 
       // Schedule Input
       const scheduleInput = document.getElementById('modalScheduleInput');
@@ -1117,11 +1121,13 @@ def generate_app():
       const encoded = encodeURIComponent(text || '');
       document.getElementById('modalThreadsIntentBtn').href = `https://www.threads.net/intent/post?text=${{encoded}}`;
       document.getElementById('modalLinkedInIntentBtn').href = `https://www.linkedin.com/feed/?shareActive=true&text=${{encoded}}`;
+      document.getElementById('modalXIntentBtn').href = `https://twitter.com/intent/tweet?text=${{encoded}}`;
     }}
 
     function updateModalCharCount() {{
       const val = document.getElementById('modalEditTextarea').value;
-      document.getElementById('modalCharCount').textContent = `${{val.length}} 文字 (Threads上限: 500文字)`;
+      const xNote = val.length > 140 ? 'X: 140文字超過' : 'X: 140文字以内';
+      document.getElementById('modalCharCount').textContent = `${{val.length}} 文字 (Threads上限: 500文字 / ${{xNote}})`;
       updateIntentLinks(val);
     }}
 

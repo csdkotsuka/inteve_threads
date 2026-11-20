@@ -1,6 +1,7 @@
 import argparse
 import datetime
 import json
+import sys
 import time
 import urllib.request
 import urllib.error
@@ -121,6 +122,7 @@ def check_and_publish():
                 scheduled_posts.append(p)
     scheduled_posts.sort(key=lambda x: x['scheduledAt'])
 
+    had_error = False
     for post in scheduled_posts:
         print(f"Found post ready for publishing: {post['day']} (Target: {post['platforms']}, Scheduled: {post['scheduledAt']})")
         text = post.get('content')
@@ -142,6 +144,7 @@ def check_and_publish():
                 published_any = True
             except Exception as e:
                 print(f"  -> Failed to publish to Threads ({post['day']}): {e}")
+                had_error = True
 
         # 2. LinkedIn 投稿
         if target in ('linkedin', 'both'):
@@ -154,6 +157,7 @@ def check_and_publish():
                     published_any = True
                 except Exception as e:
                     print(f"  -> Failed to publish to LinkedIn ({post['day']}): {e}")
+                    had_error = True
             else:
                 print(f"  -> LinkedIn token not configured; skipping LinkedIn for {post['day']}.")
 
@@ -174,6 +178,8 @@ def check_and_publish():
                 print(f"Insights for {p['day']}: Views={insights.get('views')}, Likes={insights.get('likes')}")
                 update_firestore_post(project_id, api_key, p['doc_id'], {'insights': insights})
 
+    return not had_error
+
 def main():
     parser = argparse.ArgumentParser(description="Threads & LinkedIn Auto-Poster")
     parser.add_argument('--daemon', action='store_true', help="Run continuously in background (checks every 5 minutes)")
@@ -189,7 +195,9 @@ def main():
                 print(f"Error in cycle: {e}")
             time.sleep(args.interval)
     else:
-        check_and_publish()
+        ok = check_and_publish()
+        if not ok:
+            sys.exit(1)
 
 if __name__ == '__main__':
     main()

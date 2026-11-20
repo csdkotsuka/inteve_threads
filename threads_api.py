@@ -35,6 +35,16 @@ class ThreadsAPI:
         with urllib.request.urlopen(req) as res:
             return json.loads(res.read().decode('utf-8'))
 
+    def _resolve_user_id(self):
+        """THREADS_USER_ID が未設定・不正な場合に /me から正しい ID を取得する"""
+        try:
+            prof = self.get_profile()
+            if prof.get('id'):
+                self.user_id = str(prof['id'])
+        except Exception:
+            pass
+        return self.user_id
+
     def publish_text_post(self, text):
         """
         Threads にテキスト投稿を公開する（2ステップ）
@@ -42,21 +52,33 @@ class ThreadsAPI:
         2. 公開 (POST /{user_id}/threads_publish)
         """
         # Step 1: Create Container
-        container_url = f"{self.base_url}/{self.user_id}/threads"
-        data = urllib.parse.urlencode({
-            'media_type': 'TEXT',
-            'text': text,
-            'access_token': self.access_token
-        }).encode('utf-8')
-
-        req = urllib.request.Request(container_url, data=data, method='POST')
-        try:
+        def create_container(uid):
+            container_url = f"{self.base_url}/{uid}/threads"
+            data = urllib.parse.urlencode({
+                'media_type': 'TEXT',
+                'text': text,
+                'access_token': self.access_token
+            }).encode('utf-8')
+            req = urllib.request.Request(container_url, data=data, method='POST')
             with urllib.request.urlopen(req) as res:
-                container_res = json.loads(res.read().decode('utf-8'))
-                creation_id = container_res.get('id')
+                return json.loads(res.read().decode('utf-8'))
+
+        try:
+            container_res = create_container(self.user_id)
         except urllib.error.HTTPError as e:
             err_body = e.read().decode('utf-8')
-            raise RuntimeError(f"Failed to create Threads container: {e.code} - {err_body}")
+            # THREADS_USER_ID の不一致 (code 100 / subcode 33) なら /me から再解決してリトライ
+            if '"error_subcode":33' in err_body or '"code":100' in err_body:
+                resolved_id = self._resolve_user_id()
+                try:
+                    container_res = create_container(resolved_id)
+                except urllib.error.HTTPError as e2:
+                    err_body2 = e2.read().decode('utf-8')
+                    raise RuntimeError(f"Failed to create Threads container: {e2.code} - {err_body2}")
+            else:
+                raise RuntimeError(f"Failed to create Threads container: {e.code} - {err_body}")
+
+        creation_id = container_res.get('id')
 
         if not creation_id:
             raise RuntimeError(f"No creation_id returned: {container_res}")
